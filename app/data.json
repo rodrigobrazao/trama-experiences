@@ -1,0 +1,161 @@
+{
+  "evento": {
+    "nome": "TRAMA",
+    "subtitulo": "Jornadas de Design",
+    "instituicao": "IADE",
+    "ano": 2026,
+    "data": "2026-05-15",
+    "local": "Auditório IADE, Lisboa",
+    "morada": "Av. D. Carlos I, 4, 1200-649 Lisboa",
+    "tagline": "Cruzar, Entrelaçar, Gerar"
+  },
+  "programa": [
+    {
+      "hora": "09:30",
+      "titulo": "Abertura",
+      "orador": "IADE",
+      "cor": "#ff3c00",
+      "descricao": "Sessão de abertura das Jornadas de Design TRAMA 2026.",
+      "linkTeams": null,
+      "pausa": false
+    },
+    {
+      "hora": "10:00",
+      "titulo": "Sistemas de Design à Escala",
+      "orador": "Ana Moreira",
+      "cor": "#00e5ff",
+      "descricao": "Como construir e manter design systems que escalam com a organização. Casos práticos da Figma.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example1",
+      "pausa": false
+    },
+    {
+      "hora": "10:00",
+      "titulo": "A Beleza como Função",
+      "orador": "Tomás Henriques",
+      "cor": "#c8ff00",
+      "descricao": "A relação entre estética e funcionalidade no design contemporâneo.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example2",
+      "pausa": false
+    },
+    {
+      "hora": "12:00",
+      "titulo": "Pausa",
+      "orador": "",
+      "cor": "#f0ece6",
+      "descricao": "",
+      "linkTeams": null,
+      "pausa": true
+    },
+    {
+      "hora": "13:30",
+      "titulo": "O Ensino do Design Generativo",
+      "orador": "Beatriz Costa",
+      "cor": "#ff00aa",
+      "descricao": "Novas abordagens pedagógicas para o design generativo e computacional.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example3",
+      "pausa": false
+    },
+    {
+      "hora": "14:30",
+      "titulo": "Design Inclusivo e Acessibilidade",
+      "orador": "Miguel Santos",
+      "cor": "#ff8800",
+      "descricao": "Princípios de design inclusivo e como aplicá-los em projetos reais.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example4",
+      "pausa": false
+    },
+    {
+      "hora": "15:30",
+      "titulo": "Tipografia Portuguesa Contemporânea",
+      "orador": "Sofia Almeida",
+      "cor": "#7b61ff",
+      "descricao": "O estado da arte da tipografia desenhada em Portugal.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example5",
+      "pausa": false
+    },
+    {
+      "hora": "16:30",
+      "titulo": "Quando o Design se Move",
+      "orador": "Diogo Ferreira",
+      "cor": "#ff3c00",
+      "descricao": "Motion design como ferramenta narrativa e funcional.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example6",
+      "pausa": false
+    },
+    {
+      "hora": "17:30",
+      "titulo": "Debate de Encerramento",
+      "orador": "Todos os convidados",
+      "cor": "#00e5ff",
+      "descricao": "Mesa redonda com todos os oradores convidados.",
+      "linkTeams": "https://teams.microsoft.com/l/meetup-join/example7",
+      "pausa": false
+    }
+  ],
+  "oradores": [
+    {
+      "nome": "Ana Moreira",
+      "cargo": "Design Lead",
+      "empresa": "Figma",
+      "tema": "Sistemas de Design à Escala",
+      "cor": "#00e5ff",
+      "foto": "assets/oradores/ana-moreira.jpg",
+      "bio": "Design Lead na Figma com mais de 10 anos de experiência em design systems."
+    },
+    {
+      "nome": "Tomás Henriques",
+      "cargo": "Designer",
+      "empresa": "Studio TH",
+      "tema": "A Beleza como Função",
+      "cor": "#c8ff00",
+      "foto": "assets/oradores/tomas-henriques.jpg",
+      "bio": "Designer multidisciplinar focado na interseção entre arte e funcionalidade."
+    },
+    {
+      "nome": "Beatriz Costa",
+      "cargo": "Professora",
+      "empresa": "FBAUL",
+      "tema": "O Ensino do Design Generativo",
+      "cor": "#ff00aa",
+      "foto": "assets/oradores/beatriz-costa.jpg",
+      "bio": "Professora e investigadora em design generativo e computacional."
+    },
+    {
+      "nome": "Miguel Santos",
+      "cargo": "UX Lead",
+      "empresa": "OutSystems",
+      "tema": "Design Inclusivo e Acessibilidade",
+      "cor": "#ff8800",
+      "foto": "assets/oradores/miguel-santos.jpg",
+      "bio": "Especialista em acessibilidade e design inclusivo."
+    },
+    {
+      "nome": "Sofia Almeida",
+      "cargo": "Type Designer",
+      "empresa": "DSType",
+      "tema": "Tipografia Portuguesa Contemporânea",
+      "cor": "#7b61ff",
+      "foto": "assets/oradores/sofia-almeida.jpg",
+      "bio": "Type designer com trabalho reconhecido internacionalmente."
+    },
+    {
+      "nome": "Diogo Ferreira",
+      "cargo": "Motion Designer",
+      "empresa": "Buck",
+      "tema": "Quando o Design se Move",
+      "cor": "#ff3c00",
+      "foto": "assets/oradores/diogo-ferreira.jpg",
+      "bio": "Motion designer na Buck, especialista em narrativa visual e animação."
+    }
+  ],
+  "links": [
+    {
+      "label": "Site IADE",
+      "url": "https://www.iade.europeia.pt"
+    },
+    {
+      "label": "Instagram IADE",
+      "url": "https://instagram.com/iade_eu"
+    }
+  ]
+}
