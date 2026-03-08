@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRAMA - Jornadas do Design V08</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<style>
+body{margin:0;padding:0;overflow:hidden;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.canvas-container{position:fixed;top:0;left:0;width:100%;height:100%}
+#webcam{position:absolute;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none}
+#effectCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:none}
+#mainCanvas{position:absolute;top:0;left:0;width:100%;height:100%}
+#menuToggle{position:absolute;top:10px;right:10px;width:36px;height:36px;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;transition:background 0.2s;-webkit-tap-highlight-color:transparent}
+#menuToggle:hover{background:rgba(0,0,0,0.85)}
+#menuToggle span{display:block;width:16px;height:2px;background:white;border-radius:1px;transition:transform 0.3s,opacity 0.3s}
+#menuToggle.open span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+#menuToggle.open span:nth-child(2){opacity:0}
+#menuToggle.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+#controls{position:absolute;top:52px;right:10px;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);color:white;z-index:150;min-width:200px;max-height:calc(100vh - 65px);overflow-y:auto;transform:translateX(calc(100% + 20px));opacity:0;pointer-events:none;transition:transform 0.35s cubic-bezier(0.4,0,0.2,1),opacity 0.3s ease}
+#controls.visible{transform:translateX(0);opacity:1;pointer-events:auto}
+#controls::-webkit-scrollbar{width:4px}
+#controls::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:2px}
+.section-header{font-size:10px;text-transform:uppercase;letter-spacing:2px;padding:8px 0 4px;cursor:pointer;opacity:0.5;user-select:none;border-top:1px solid rgba(255,255,255,0.08);margin-top:4px}
+.section-header:first-child{border-top:none;margin-top:0}
+.section-header:hover{opacity:0.8}
+.section-header .arrow{float:right;transition:transform 0.2s}
+.section-header.closed .arrow{transform:rotate(-90deg)}
+.section-content{overflow:hidden;transition:max-height 0.3s ease}
+.section-content.collapsed{max-height:0!important;overflow:hidden;padding:0}
+.cg{margin-bottom:6px}
+.cg label{display:block;margin-bottom:2px;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7}
+input[type="range"]{width:100%;margin-top:2px;height:18px}
+.vd{float:right;font-weight:bold;font-size:11px}
+select{width:100%;padding:6px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;font-size:12px;cursor:pointer;outline:none;margin-top:2px}
+select option{background:#1a1a1a;color:white}
+input[type="text"],input[type="date"]{width:100%;padding:6px 8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:white;font-size:12px;outline:none;margin-top:2px;box-sizing:border-box}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.toggle-row span{font-size:11px}
+.toggle{position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;border-radius:10px;background:rgba(128,128,128,0.3);transition:background 0.3s}
+.toggle .slider::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform 0.3s}
+.toggle input:checked+.slider{background:#7b61ff}
+.toggle input:checked+.slider::after{transform:translateX(16px)}
+button.action-btn{width:100%;padding:7px;background:#E63946;border:none;color:white;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;margin-top:4px}
+button.action-btn.active{background:#06FFA5}
+button.secondary-btn{width:100%;padding:6px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;border-radius:4px;cursor:pointer;font-size:11px;margin-top:4px}
+.effect-params{display:none}
+.effect-params.visible{display:block}
+#timecode-overlay{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);font-size:22px;font-weight:600;letter-spacing:3px;font-variant-numeric:tabular-nums;pointer-events:none;z-index:5;color:white;display:none;font-family:'Helvetica Neue',monospace}
+#countdown-overlay{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);text-align:center;font-size:16px;font-weight:400;letter-spacing:4px;text-transform:uppercase;pointer-events:none;z-index:5;color:white;display:none}
+#countdown-overlay .cd-segments{display:flex;gap:0.5em;justify-content:center;margin-top:4px}
+#countdown-overlay .cd-seg{display:inline-flex;flex-direction:column;align-items:center;min-width:2.5em}
+#countdown-overlay .cd-seg .cd-num{font-size:2em;font-weight:600;letter-spacing:1px;font-variant-numeric:tabular-nums}
+#countdown-overlay .cd-seg .cd-lbl{font-size:0.5em;letter-spacing:3px;opacity:0.5;margin-top:2px}
+#qr-overlay-html{position:absolute;display:none;z-index:10;pointer-events:none}
+#status{position:absolute;bottom:10px;left:10px;color:white;background:rgba(0,0,0,0.7);padding:8px 12px;border-radius:4px;font-size:11px;z-index:5;pointer-events:none}
+</style>
+</head>
+<body>
+<button id="menuToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+<div id="controls">
+
+<!-- INTERACAO -->
+<div class="section-header" onclick="toggleSection(this)">INTERACAO <span class="arrow">▾</span></div>
+<div class="section-content">
+<div class="cg"><label>Efeito Mao</label><select id="handEffect"><option value="wireframe">Wireframe</option><option value="skeleton">Esqueleto</option></select></div>
+<div class="cg"><label>Elasticidade <span class="vd" id="v-elasticity">0.08</span></label><input type="range" id="r-elasticity" min="0.02" max="0.15" step="0.01" value="0.08"></div>
+<div class="cg"><label>Densidade Malha <span class="vd" id="v-density">25</span></label><input type="range" id="r-density" min="15" max="35" step="2" value="25"></div>
+<div class="cg"><label>Raio Captura <span class="vd" id="v-capture">60</span></label><input type="range" id="r-capture" min="30" max="100" step="5" value="60"></div>
+<div class="cg"><label>Opacidade Tracking <span class="vd" id="v-tracking">60%</span></label><input type="range" id="r-tracking" min="0" max="100" step="5" value="60"></div>
+</div>
+
+<!-- ANIMACAO -->
+<div class="section-header" onclick="toggleSection(this)">ANIMACAO <span class="arrow">▾</span></div>
+<div class="section-content">
+<div class="toggle-row"><span>Animacao Elastica</span><label class="toggle"><input type="checkbox" id="toggle-elastic" checked><div class="slider"></div></label></div>
+<div id="elastic-params">
+<div class="cg"><label>Velocidade <span class="vd" id="v-speed">1.0</span></label><input type="range" id="r-speed" min="0.1" max="3.0" step="0.1" value="1.0"></div>
+<div class="cg"><label>Amplitude <span class="vd" id="v-amplitude">20</span></label><input type="range" id="r-amplitude" min="0" max="80" step="1" value="20"></div>
+<div class="cg"><label>Profundidade <span class="vd" id="v-depth">0.30</span></label><input type="range" id="r-depth" min="0" max="1" step="0.05" value="0.3"></div>
+<div class="cg"><label>Raio de Accao <span class="vd" id="v-radius">600</span></label><input type="range" id="r-radius" min="200" max="1200" step="50" value="600"></div>
+<div class="cg"><label>Bounce <span class="vd" id="v-bounce">0.00</span></label><input type="range" id="r-bounce" min="0" max="1" step="0.05" value="0"></div>
+</div>
+</div>
+
+<!-- CAMERA -->
+<div class="section-header" onclick="toggleSection(this)">CAMERA <span class="arrow">▾</span></div>
+<div class="section-content">
+<div class="cg"><button class="action-btn" id="btn-camera">Ativar Camera</button></div>
+<div class="cg"><label>Fonte Video</label><select id="sel-video-source"><option value="">A carregar...</option></select></div>
+<div class="cg"><label>Opacidade Video <span class="vd" id="v-vidopacity">50%</span></label><input type="range" id="r-vidopacity" min="0" max="100" step="5" value="50"></div>
+<div class="cg"><label>Efeito</label><select id="sel-camera-effect">
+<option value="none">Nenhum</option><option value="bw">Preto & Branco</option><option value="outline">Contorno</option>
+<option value="sketch">Esboco</option><option value="cartoon">Cartoon</option><option value="pointcloud">Nuvem Pontos</option>
+<option value="blur">Desfoque/Bokeh</option><option value="liquify">Liquefazer</option><option value="frosted">Vidro Fosco</option>
+</select></div>
+<!-- Effect-specific params -->
+<div id="ep-bw" class="effect-params"><div class="cg"><label>Contraste <span class="vd" id="v-bw-c">1.0</span></label><input type="range" id="r-bw-contrast" min="0.5" max="3.0" step="0.1" value="1.0"></div></div>
+<div id="ep-outline" class="effect-params">
+<div class="cg"><label>Limiar <span class="vd" id="v-ol-t">50</span></label><input type="range" id="r-outline-threshold" min="10" max="200" step="5" value="50"></div>
+<div class="cg"><label>Fundo</label><select id="sel-outline-bg"><option value="black">Preto</option><option value="white">Branco</option></select></div>
+<div class="cg"><label>Cor Linha</label><select id="sel-outline-color"><option value="white">Branco</option><option value="black">Preto</option><option value="original">Original</option></select></div>
+</div>
+<div id="ep-sketch" class="effect-params">
+<div class="cg"><label>Intensidade <span class="vd" id="v-sk-i">1.0</span></label><input type="range" id="r-sketch-intensity" min="0.5" max="3.0" step="0.1" value="1.0"></div>
+<div class="cg"><label>Blur <span class="vd" id="v-sk-b">3</span></label><input type="range" id="r-sketch-blur" min="1" max="8" step="1" value="3"></div>
+</div>
+<div id="ep-cartoon" class="effect-params">
+<div class="cg"><label>Niveis <span class="vd" id="v-ct-l">8</span></label><input type="range" id="r-cartoon-levels" min="3" max="16" step="1" value="8"></div>
+<div class="cg"><label>Borda <span class="vd" id="v-ct-e">60</span></label><input type="range" id="r-cartoon-edge" min="10" max="200" step="5" value="60"></div>
+</div>
+<div id="ep-pointcloud" class="effect-params">
+<div class="cg"><label>Espacamento <span class="vd" id="v-pc-s">8</span></label><input type="range" id="r-pc-spacing" min="3" max="20" step="1" value="8"></div>
+<div class="cg"><label>Tamanho <span class="vd" id="v-pc-sz">3</span></label><input type="range" id="r-pc-size" min="1" max="10" step="0.5" value="3"></div>
+<div class="cg"><label>Cor</label><select id="sel-pc-color"><option value="original">Original</option><option value="green">Verde</option><option value="white">Branco</option></select></div>
+<div class="cg"><label>Fundo</label><select id="sel-pc-bg"><option value="black">Preto</option><option value="transparent">Transparente</option></select></div>
+</div>
+<div id="ep-blur" class="effect-params">
+<div class="cg"><label>Raio Blur <span class="vd" id="v-bl-r">8</span></label><input type="range" id="r-blur-radius" min="1" max="30" step="1" value="8"></div>
+<div class="cg"><label>Bokeh Intensidade <span class="vd" id="v-bl-i">0.5</span></label><input type="range" id="r-bokeh-intensity" min="0" max="2" step="0.1" value="0.5"></div>
+<div class="cg"><label>Bokeh Limiar <span class="vd" id="v-bl-t">180</span></label><input type="range" id="r-bokeh-threshold" min="100" max="250" step="5" value="180"></div>
+</div>
+<div id="ep-liquify" class="effect-params">
+<div class="cg"><label>Forca <span class="vd" id="v-lq-f">30</span></label><input type="range" id="r-liquify-force" min="5" max="80" step="1" value="30"></div>
+<div class="cg"><label>Escala <span class="vd" id="v-lq-s">200</span></label><input type="range" id="r-liquify-scale" min="50" max="500" step="10" value="200"></div>
+<div class="cg"><label>Velocidade <span class="vd" id="v-lq-sp">1.0</span></label><input type="range" id="r-liquify-speed" min="0.1" max="3.0" step="0.1" value="1.0"></div>
+</div>
+<div id="ep-frosted" class="effect-params">
+<div class="cg"><label>Blur <span class="vd" id="v-fr-b">6</span></label><input type="range" id="r-frosted-blur" min="1" max="20" step="1" value="6"></div>
+<div class="cg"><label>Grao <span class="vd" id="v-fr-g">40</span></label><input type="range" id="r-frosted-grain" min="0" max="100" step="5" value="40"></div>
+<div class="cg"><label>Nevoa <span class="vd" id="v-fr-f">0.15</span></label><input type="range" id="r-frosted-fog" min="0" max="0.5" step="0.05" value="0.15"></div>
+</div>
+</div>
+
+<!-- VISUAL -->
+<div class="section-header" onclick="toggleSection(this)">VISUAL <span class="arrow">▾</span></div>
+<div class="section-content">
+<div class="cg"><label>Tema</label><select id="sel-theme"><option value="auto">Automatico</option><option value="dark" selected>Escuro</option><option value="light">Claro</option></select></div>
+<div class="toggle-row"><span>Ciclo Gradiente</span><label class="toggle"><input type="checkbox" id="toggle-gradient"><div class="slider"></div></label></div>
+<div class="cg"><label>Formato</label><select id="sel-format"><option value="landscape">Paisagem 1920x1080</option><option value="vertical">Vertical 1080x1920</option><option value="square">Quadrado 1080x1080</option></select></div>
+</div>
+
+<!-- TIMECODE -->
+<div class="section-header closed" onclick="toggleSection(this)">TIMECODE <span class="arrow">▾</span></div>
+<div class="section-content collapsed">
+<div class="toggle-row"><span>Mostrar Timecode</span><label class="toggle"><input type="checkbox" id="toggle-timecode"><div class="slider"></div></label></div>
+<div class="toggle-row"><span>Tempo Real</span><label class="toggle"><input type="checkbox" id="toggle-realtime" checked><div class="slider"></div></label></div>
+<div class="cg"><label>Posicao Y <span class="vd" id="v-tc-y">60</span></label><input type="range" id="r-tc-y" min="10" max="200" step="5" value="60"></div>
+<div class="cg"><label>Tamanho <span class="vd" id="v-tc-size">22</span>px</label><input type="range" id="r-tc-size" min="10" max="80" step="1" value="22"></div>
+</div>
+
+<!-- COUNTDOWN -->
+<div class="section-header closed" onclick="toggleSection(this)">COUNTDOWN <span class="arrow">▾</span></div>
+<div class="section-content collapsed">
+<div class="toggle-row"><span>Mostrar Countdown</span><label class="toggle"><input type="checkbox" id="toggle-countdown"><div class="slider"></div></label></div>
+<div class="cg"><label>Titulo</label><input type="text" id="input-cd-title" value="Jornadas Interativas do Design"></div>
+<div class="cg"><label>Data Alvo</label><input type="date" id="input-cd-date" value="2026-06-15"></div>
+<div class="cg"><label>Posicao Y <span class="vd" id="v-cd-y">20</span></label><input type="range" id="r-cd-y" min="10" max="200" step="5" value="20"></div>
+<div class="cg"><label>Tamanho <span class="vd" id="v-cd-size">16</span>px</label><input type="range" id="r-cd-size" min="10" max="60" step="1" value="16"></div>
+</div>
+
+<!-- QR CODE -->
+<div class="section-header closed" onclick="toggleSection(this)">QR CODE <span class="arrow">▾</span></div>
+<div class="section-content collapsed">
+<div class="toggle-row"><span>Mostrar QR</span><label class="toggle"><input type="checkbox" id="toggle-qr"><div class="slider"></div></label></div>
+<div class="cg"><label>URL</label><input type="text" id="input-qr-url" value="" placeholder="URL do site"></div>
+<div class="cg"><label>Tamanho <span class="vd" id="v-qr-size">150</span></label><input type="range" id="r-qr-size" min="50" max="500" step="10" value="150"></div>
+<div class="cg"><label>Posicao X <span class="vd" id="v-qr-x">1720</span></label><input type="range" id="r-qr-x" min="0" max="1920" step="10" value="1720"></div>
+<div class="cg"><label>Posicao Y <span class="vd" id="v-qr-y">880</span></label><input type="range" id="r-qr-y" min="0" max="1080" step="10" value="880"></div>
+</div>
+
+<!-- GRAVAR -->
+<div class="section-header closed" onclick="toggleSection(this)">GRAVAR <span class="arrow">▾</span></div>
+<div class="section-content collapsed">
+<div class="cg"><label>Duracao (segundos) <span class="vd" id="v-rec-dur">10</span></label><input type="range" id="r-rec-dur" min="1" max="60" step="1" value="10"></div>
+<div class="cg"><button class="action-btn" id="btn-record">Gravar HD 1920×1080</button></div>
+<div id="rec-status" style="font-size:10px;margin-top:4px;opacity:0.7"></div>
+</div>
+
+<!-- EXPORTAR -->
+<div class="section-header closed" onclick="toggleSection(this)">EXPORTAR <span class="arrow">▾</span></div>
+<div class="section-content collapsed">
+<div class="cg"><button class="secondary-btn" id="btn-export-png">Exportar Frame (PNG)</button></div>
+<div class="cg"><button class="secondary-btn" id="btn-save-settings">Guardar Settings</button></div>
+<div class="cg"><button class="secondary-btn" id="btn-load-settings">Carregar Settings</button></div>
+<input type="file" id="file-load-settings" accept=".json" style="display:none">
+</div>
+
+</div><!-- /controls -->
+
+<div id="timecode-overlay">00:00:00:00</div>
+<div id="countdown-overlay">
+  <span id="cd-title">Jornadas Interativas do Design</span>
+  <div class="cd-segments">
+    <span class="cd-seg"><span class="cd-num" id="cd-days">00</span><span class="cd-lbl">DIAS</span></span>
+    <span class="cd-seg"><span class="cd-num" id="cd-hours">00</span><span class="cd-lbl">HORAS</span></span>
+    <span class="cd-seg"><span class="cd-num" id="cd-mins">00</span><span class="cd-lbl">MIN</span></span>
+    <span class="cd-seg"><span class="cd-num" id="cd-secs">00</span><span class="cd-lbl">SEG</span></span>
+  </div>
+</div>
+<img id="qr-overlay-html" alt="QR Code">
+<div id="status">Clica "Ativar Camera" - Move as maos para interagir</div>
+
+<div class="canvas-container">
+  <video id="webcam" autoplay playsinline muted></video>
+  <canvas id="effectCanvas"></canvas>
+  <canvas id="mainCanvas"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+<script>
+// ============================================
+// STATE & CONFIG
+// ============================================
+let canvas, ctx, webcam, effectCanvas, effectCtx;
+let hands, mpCamera;
+let isRunning = false;
+let allFingers = [];
+let allHandLandmarks = [];
+let animTime = 0;
+let lastTimestamp = 0;
+let currentEffect = 'wireframe';
+
+const CONFIG = {
+  elasticity: 0.08, damping: 0.92, gridDensity: 25,
+  captureRadius: 60, videoOpacity: 0.5, trackingOpacity: 0.6
+};
+
+let points = [];
+let cols, rows;
+const SVG_AREA = { x: 0, y: 0, width: 1920, height: 1080 };
+
+// Elastic wave params
+let elasticAnimEnabled = true;
+let elasticSpeed = 1.0;
+let elasticAmplitude = 20;
+let elasticElasticity = 0.3;
+let elasticRadius = 600;
+let elasticBounce = 0.0;
+const TWO_PI = 2 * Math.PI;
+
+// Camera state
+let cameraEnabled = false;
+let cameraEffect = 'none';
+let effectBwContrast = 1.0;
+let effectOutlineThreshold = 50;
+let effectOutlineBg = 'black';
+let effectOutlineColor = 'white';
+let effectSketchIntensity = 1.0;
+let effectSketchBlur = 3;
+let effectCartoonLevels = 8;
+let effectCartoonEdge = 60;
+let effectPcSpacing = 8;
+let effectPcSize = 3;
+let effectPcColor = 'original';
+let effectPcBg = 'black';
+let effectBlurRadius = 8;
+let effectBokehIntensity = 0.5;
+let effectBokehThreshold = 180;
+let effectLiquifyForce = 30;
+let effectLiquifyScale = 200;
+let effectLiquifySpeed = 1.0;
+let effectFrostedBlur = 6;
+let effectFrostedGrain = 40;
+let effectFrostedFog = 0.15;
+let selectedVideoDeviceId = null;
+let selectedVideoDeviceLabel = '';
+
+// Theme state
+let themeMode = 'dark';
+let gradientCycleEnabled = false;
+let currentDarkness = 1;
+let themeBgColor = 'rgb(0,0,0)';
+let themeTextColor = 'rgb(255,255,255)';
+let themeTextRgb = {r:255, g:255, b:255};
+let themeBorderColor = '#f0ece6';
+
+// Timecode state
+let showTimecode = false;
+let useRealTime = true;
+let tcPosY = 60;
+let tcSize = 22;
+
+// Countdown state
+let countdownEnabled = false;
+let countdownTarget = new Date(2026, 5, 15, 9, 0, 0);
+let cdPosY = 20;
+let cdSize = 16;
+
+// QR state
+let qrEnabled = false;
+let qrUrl = '';
+let qrSize = 150;
+let qrX = 1720;
+let qrY = 880;
+
+// Format state
+let canvasFormat = 'landscape';
+const FORMAT_DIMS = { landscape:{w:1920,h:1080}, vertical:{w:1080,h:1920}, square:{w:1080,h:1080} };
+let logicalW = 1920, logicalH = 1080;
+
+// Design constants (original SVG coordinate space)
+const DESIGN_W = 1920, DESIGN_H = 1080;
+const EDGE_M = 10; // edge pinning margin in design coords
+const CANVAS_PADDING = 80; // padding around design area in pixels
+
+// Recording state
+let isRecording = false;
+let recCanvas, recCtx, mediaRecorder, recordedChunks = [];
+let recDuration = 10;
+let recTimer = null;
+
+// ============================================
+// HAND CONNECTIONS
+// ============================================
+const HAND_CONNECTIONS = [
+  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]
+];
+
+// ============================================
+// SVG POLYLINES DATA
+// ============================================
+const svgPolylines = [
+  {points:"884.14 -3.55 1771.9 1080",color:"#00e5ff"},
+  {points:"1201.6 0 1266.76 1080.6",color:"#00e5ff"},
+  {points:"973.78 0 621.74 1078.41 0 761.84",color:"#00e5ff"},
+  {points:"704.24 0 1051.66 1080.26",color:"#00e5ff"},
+  {points:"0 468.19 1007.98 382.66 1919.89 427.48",color:"#ff00aa"},
+  {points:"0 673.48 923.3 673.48",color:"#ff00aa"},
+  {points:"0 311.59 554.68 420.1",color:"#7b61ff"},
+  {points:"0 537.13 1919.63 886.93",color:"#7b61ff"},
+  {points:"659.16 614.05 805.56 1080",color:"#7b61ff"},
+  {points:"0 203.48 974.09 1078.41 1027.57 0",color:"#ff8800"},
+  {points:"630.67 0 437.71 1080.78",color:"#ff3c00"},
+  {points:"1920 411.89 245.89 1080.26",color:"#ff3c00"},
+  {points:"1230.71 0 1097.28 385.85",color:"#ff3c00"},
+  {points:"368.1 533.59 413.7 1081.16",color:"#c8ff00"},
+  {points:"1919.9 630.13 997.66 583.87",color:"#c8ff00"},
+  {points:"461.16 427.94 422.19 0",color:"#c8ff00"},
+  {points:"376.56 639.24 997.66 583.87",color:"#c8ff00"}
+];
+
+// ============================================
+// TRAMA LETTER PATHS
+// ============================================
+const TRAMA_LETTERS = [
+  {d:'M401.35,465.11l14.46,170.8-39.26,3.32-14.46-170.8-61.67,5.22-2.7-31.88,163.43-13.83,2.7,31.88-62.5,5.29Z',cx:381,cy:534},
+  {d:'M571.95,559.82l-14.04,79.02-40.82-7.25,37.59-211.49,70.88,12.6c11.72,2.08,22.07,5.35,31.07,9.79,9,4.45,16.41,9.94,22.25,16.47,5.74,6.51,9.71,14.06,11.93,22.65,2.22,8.59,2.4,18.11.54,28.57-1.34,7.55-3.45,14.2-6.31,19.93-2.87,5.73-6.37,10.68-10.5,14.84-4.25,4.24-9.04,7.73-14.37,10.48-5.33,2.75-11.14,4.91-17.41,6.5l29.95,95.38-.34,1.89-43.72-7.77-25.76-86.09-30.94-5.5ZM608.05,532.08c6.29,1.12,12,1.21,17.11.27,5.11-.94,9.47-2.84,13.07-5.69,3-2.26,5.49-5.17,7.47-8.71,1.98-3.54,3.38-7.64,4.21-12.29,1-5.62,1.03-10.73.1-15.34-.93-4.61-2.84-8.62-5.73-12.03-2.56-3.05-5.89-5.64-10.01-7.77-4.12-2.13-8.98-3.69-14.6-4.69l-30.07-5.34-11.77,66.24,30.21,5.37Z',cx:594,cy:545},
+  {d:'M806.62,631.25l-12.17,43.02h-41.89l67.5-206.03h36.08l66.22,206.03h-41.89l-12.03-43.02h-61.84ZM859.11,597.43l-21.08-75.85-21.65,75.85h42.73Z',cx:837,cy:571},
+  {d:'M1071.79,460.75l25.49-74.9,48.47,2.36-9.83,202.19-35.83-1.74,2.91-59.85,6.26-94.49-30.79,86.48-19.3-.94-19.66-85.17-2.75,90.9-2.91,59.85-35.83-1.74,9.83-202.19,48.47,2.36,15.47,76.89Z',cx:1072,cy:486},
+  {d:'M1275.67,623.35l4.41,43.86-38.42,15.16-12.65-213.42,33.1-13.06,135.31,165.02-38.42,15.16-26.6-35.11-56.72,22.38ZM1311.59,573.32l-46.79-61.94,7.59,77.41,39.2-15.47Z',cx:1313,cy:569}
+];
+const tramaPath2Ds = TRAMA_LETTERS.map(l => ({path: new Path2D(l.d), cx: l.cx, cy: l.cy}));
+
+// Parse SVG path d-string into array of sub-paths (each sub-path is array of {x,y} points).
+// Flattens cubic beziers into line segments so every vertex can be independently distorted.
+function parseSvgPath(d) {
+  const subPaths = [];
+  let cur = [], cx = 0, cy = 0, sx = 0, sy = 0;
+  const toks = d.match(/[a-zA-Z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g);
+  if (!toks) return subPaths;
+  let i = 0;
+  const n = () => parseFloat(toks[i++]);
+  const isNum = () => i < toks.length && /^[-+.\d]/.test(toks[i]);
+  while (i < toks.length) {
+    const cmd = toks[i];
+    if (!/[a-zA-Z]/.test(cmd)) { i++; continue; }
+    i++;
+    switch (cmd) {
+      case 'M':
+        if (cur.length) subPaths.push(cur);
+        cx = n(); cy = n(); sx = cx; sy = cy;
+        cur = [{x:cx,y:cy}];
+        while (isNum()) { cx = n(); cy = n(); cur.push({x:cx,y:cy}); }
+        break;
+      case 'm':
+        if (cur.length) subPaths.push(cur);
+        cx += n(); cy += n(); sx = cx; sy = cy;
+        cur = [{x:cx,y:cy}];
+        while (isNum()) { cx += n(); cy += n(); cur.push({x:cx,y:cy}); }
+        break;
+      case 'L': while (isNum()) { cx = n(); cy = n(); cur.push({x:cx,y:cy}); } break;
+      case 'l': while (isNum()) { cx += n(); cy += n(); cur.push({x:cx,y:cy}); } break;
+      case 'H': while (isNum()) { cx = n(); cur.push({x:cx,y:cy}); } break;
+      case 'h': while (isNum()) { cx += n(); cur.push({x:cx,y:cy}); } break;
+      case 'V': while (isNum()) { cy = n(); cur.push({x:cx,y:cy}); } break;
+      case 'v': while (isNum()) { cy += n(); cur.push({x:cx,y:cy}); } break;
+      case 'C':
+        while (isNum()) {
+          const x1=n(),y1=n(),x2=n(),y2=n(),x3=n(),y3=n();
+          for (let s=1;s<=10;s++){const t=s/10,u=1-t;cur.push({x:u*u*u*cx+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,y:u*u*u*cy+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3});}
+          cx=x3;cy=y3;
+        }
+        break;
+      case 'c':
+        while (isNum()) {
+          const dx1=n(),dy1=n(),dx2=n(),dy2=n(),dx=n(),dy=n();
+          const x1=cx+dx1,y1=cy+dy1,x2=cx+dx2,y2=cy+dy2,x3=cx+dx,y3=cy+dy;
+          for (let s=1;s<=10;s++){const t=s/10,u=1-t;cur.push({x:u*u*u*cx+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,y:u*u*u*cy+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3});}
+          cx=x3;cy=y3;
+        }
+        break;
+      case 'S': case 's': case 'Q': case 'q': case 'T': case 't': case 'A': case 'a':
+        // Fallback for unsupported commands: skip params
+        while (isNum()) n();
+        break;
+      case 'Z': case 'z':
+        cx = sx; cy = sy;
+        if (cur.length) subPaths.push(cur);
+        cur = [];
+        break;
+    }
+  }
+  if (cur.length) subPaths.push(cur);
+  return subPaths;
+}
+
+// Pre-parse TRAMA letter SVG paths into vertex arrays for per-vertex grid distortion
+const tramaParsed = TRAMA_LETTERS.map(l => parseSvgPath(l.d));
+
+// ============================================
+// SUBTITLE PATHS
+// ============================================
+const jornadasPath = new Path2D();
+['M1024.27,636.86v15.08c-.02,1-.21,1.92-.57,2.77-.36.84-.86,1.57-1.48,2.17-.62.62-1.36,1.09-2.21,1.44-.85.34-1.77.51-2.78.51s-1.93-.15-2.76-.46c-.83-.31-1.54-.75-2.15-1.32-.62-.57-1.11-1.25-1.47-2.06-.37-.81-.59-1.71-.68-2.72h2.8c.03.61.15,1.17.37,1.68.21.52.5.96.87,1.34.37.39.81.68,1.32.89.51.21,1.08.31,1.72.31s1.24-.12,1.76-.36.96-.57,1.32-.99c.36-.42.63-.9.83-1.45s.3-1.13.32-1.75v-15.08h2.81Z','M1043.47,651.28c-.12.79-.31,1.55-.57,2.28-.26.73-.59,1.42-.99,2.05-.4.64-.88,1.19-1.44,1.67-.56.48-1.19.85-1.91,1.12-.72.27-1.53.41-2.42.41s-1.7-.14-2.42-.41c-.72-.27-1.36-.65-1.91-1.12-.56-.48-1.04-1.03-1.44-1.67-.41-.64-.74-1.33-1-2.06-.27-.73-.47-1.49-.59-2.28-.13-.78-.2-1.56-.21-2.34v-2.47c0-.77.08-1.55.2-2.34.12-.79.32-1.55.59-2.28.26-.73.59-1.42.99-2.06.4-.64.88-1.2,1.44-1.69.56-.48,1.19-.85,1.91-1.12.72-.27,1.53-.41,2.42-.41s1.7.14,2.43.41c.72.27,1.36.65,1.92,1.12.56.48,1.03,1.03,1.44,1.67.4.64.74,1.33,1,2.06.26.73.45,1.5.57,2.29.12.79.19,1.58.2,2.35v2.47c0,.77-.08,1.56-.2,2.34ZM1040.85,644.82c-.06-.56-.16-1.12-.3-1.67-.15-.55-.34-1.07-.58-1.57-.24-.5-.54-.94-.89-1.33-.36-.38-.78-.68-1.26-.9-.49-.22-1.05-.33-1.7-.33s-1.2.11-1.68.34c-.49.23-.91.53-1.27.91-.36.39-.65.83-.89,1.33s-.43,1.02-.57,1.57c-.15.56-.26,1.11-.32,1.67s-.1,1.09-.11,1.6v2.5c0,.51.05,1.04.11,1.61s.17,1.12.32,1.67c.15.56.34,1.09.58,1.59s.54.95.89,1.32c.36.39.78.7,1.27.92.49.23,1.05.34,1.7.34s1.21-.11,1.7-.34c.49-.23.92-.54,1.27-.92.35-.38.64-.82.87-1.32.23-.5.42-1.03.57-1.58.14-.55.24-1.1.29-1.67s.09-1.11.1-1.62v-2.5c0-.52-.04-1.05-.1-1.62Z','M1050.71,649.68v8.84h-2.74v-21.67h6.35c1.01.02,1.96.16,2.86.43.89.27,1.68.67,2.35,1.21.67.54,1.19,1.21,1.57,2.02s.57,1.76.57,2.85c0,.71-.1,1.35-.3,1.93-.2.59-.48,1.12-.84,1.59s-.78.9-1.28,1.26c-.5.37-1.04.68-1.64.94l4.6,9.26v.18h-2.92l-4.26-8.84h-4.33ZM1054.41,647.42c.61,0,1.2-.11,1.74-.29.54-.18,1.03-.45,1.44-.8.41-.35.73-.77.97-1.27s.36-1.08.36-1.73c0-.69-.11-1.3-.34-1.82-.23-.52-.55-.96-.95-1.32-.41-.35-.89-.61-1.45-.79s-1.17-.27-1.84-.28h-3.62v8.3h3.69Z','M1076.94,658.52l-8.41-16.19-.04,16.19h-2.78v-21.67h2.8l8.41,16.16.04-16.16h2.78v21.67h-2.8Z','M1087.56,652.91l-1.74,5.61h-2.75l7-21.67h2.31l6.88,21.67h-2.74l-1.71-5.61h-7.23ZM1094.07,650.52l-2.86-9.41-2.9,9.41h5.76Z','M1102.46,636.86h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.29.37.73.65,1.54.84,2.41s.29,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1105.26,656.28h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c0-.67-.07-1.32-.17-1.94s-.26-1.2-.47-1.73c-.27-.69-.63-1.32-1.08-1.88s-1-1.01-1.66-1.36c-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z','M1124.14,652.91l-1.74,5.61h-2.75l7-21.67h2.31l6.88,21.67h-2.74l-1.71-5.61h-7.23ZM1130.65,650.52l-2.86-9.41-2.9,9.41h5.76Z','M1150.21,651.37c-.3-.46-.69-.84-1.17-1.16-.48-.31-1-.57-1.57-.77s-1.12-.4-1.64-.57c-.76-.25-1.54-.55-2.33-.9s-1.51-.78-2.15-1.27c-.65-.51-1.19-1.1-1.6-1.79-.41-.69-.62-1.5-.62-2.43s.21-1.77.62-2.5c.41-.73.95-1.35,1.61-1.86.67-.51,1.42-.89,2.26-1.15.84-.26,1.69-.39,2.54-.39.94,0,1.85.16,2.72.47s1.65.75,2.32,1.32c.67.57,1.21,1.25,1.62,2.05.41.8.62,1.7.64,2.69h-2.83c-.08-.62-.23-1.19-.46-1.7-.23-.51-.53-.95-.91-1.32-.38-.37-.83-.65-1.35-.86-.52-.2-1.11-.3-1.76-.3-.53,0-1.04.07-1.54.22-.5.15-.94.37-1.33.67-.4.3-.71.67-.94,1.1-.23.44-.35.94-.35,1.52,0,.62.17,1.15.48,1.58s.7.8,1.18,1.09c.47.3.97.55,1.53.74.55.2,1.07.37,1.56.52.8.25,1.61.55,2.41.9.8.35,1.54.8,2.2,1.35.65.51,1.18,1.13,1.58,1.86.4.73.6,1.58.6,2.54s-.22,1.82-.65,2.54c-.43.72-.99,1.33-1.67,1.8-.68.49-1.46.85-2.32,1.09-.86.24-1.73.37-2.59.37-1.03,0-2.05-.17-3.04-.52-1-.35-1.86-.85-2.6-1.5-.65-.57-1.17-1.23-1.55-1.99-.38-.76-.59-1.6-.62-2.54h2.81c.09.67.27,1.27.55,1.79.28.52.63.96,1.07,1.32.44.37.94.64,1.51.83s1.19.28,1.87.28c.54,0,1.06-.07,1.58-.2.52-.13.98-.34,1.39-.63.41-.28.74-.63,1-1.06.26-.43.39-.94.39-1.54,0-.67-.15-1.23-.45-1.68Z'].forEach(d => jornadasPath.addPath(new Path2D(d)));
+
+const doDesignPath = new Path2D();
+['M1010.71,671.83h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.28.37.73.65,1.54.84,2.41s.3,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1013.51,691.25h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c-.01-.67-.07-1.32-.17-1.94-.1-.62-.26-1.2-.47-1.73-.27-.69-.63-1.32-1.08-1.88-.45-.56-1-1.01-1.66-1.36-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z','M1043.17,686.26c-.12.79-.31,1.55-.57,2.28-.26.73-.59,1.42-.99,2.05-.4.64-.88,1.19-1.44,1.67s-1.19.85-1.91,1.12c-.72.27-1.53.41-2.42.41s-1.7-.14-2.42-.41c-.72-.27-1.36-.65-1.91-1.12-.56-.48-1.04-1.03-1.44-1.67-.41-.64-.74-1.33-1-2.06-.27-.73-.47-1.49-.59-2.28-.13-.78-.2-1.56-.21-2.34v-2.47c0-.77.08-1.55.2-2.34s.32-1.55.59-2.28c.26-.73.59-1.42.99-2.06.4-.64.88-1.2,1.44-1.69.56-.48,1.19-.85,1.91-1.12.72-.27,1.53-.41,2.42-.41s1.7.14,2.43.41c.72.27,1.36.65,1.92,1.12.55.48,1.03,1.03,1.44,1.67.4.64.74,1.33,1,2.06.26.73.45,1.5.57,2.29.12.79.19,1.58.2,2.35v2.47c0,.77-.08,1.55-.2,2.34ZM1040.55,679.8c-.06-.56-.16-1.12-.3-1.67-.15-.55-.34-1.07-.58-1.57-.24-.5-.54-.95-.89-1.33-.36-.38-.78-.68-1.26-.9-.49-.22-1.05-.33-1.7-.33s-1.2.11-1.68.34c-.49.23-.91.53-1.27.91-.36.39-.65.83-.89,1.33s-.43,1.02-.57,1.57c-.15.56-.26,1.11-.32,1.67s-.1,1.09-.11,1.6v2.5c0,.51.05,1.04.11,1.61s.17,1.12.32,1.67c.15.56.34,1.09.58,1.59s.54.95.89,1.32c.36.39.78.7,1.26.92.49.23,1.05.34,1.7.34s1.21-.11,1.7-.34c.49-.23.92-.54,1.27-.92.35-.38.64-.82.87-1.32.23-.5.42-1.03.57-1.58.14-.55.24-1.1.29-1.67s.09-1.11.1-1.62v-2.5c0-.52-.04-1.05-.1-1.62Z','M1065.58,671.83h5.02c.84,0,1.64.1,2.39.26.75.16,1.44.39,2.08.69.88.41,1.67.94,2.34,1.6.68.66,1.22,1.42,1.63,2.28.37.73.65,1.54.84,2.41s.3,1.81.31,2.8v1.59c0,.95-.09,1.86-.28,2.71-.18.85-.45,1.64-.8,2.35-.36.74-.81,1.42-1.35,2.02-.55.6-1.16,1.12-1.83,1.55-.71.45-1.52.79-2.42,1.03-.9.24-1.87.36-2.91.37h-5.02v-21.67ZM1068.38,691.25h2.22c.79,0,1.51-.11,2.17-.3.65-.19,1.23-.46,1.73-.8.54-.36,1-.8,1.39-1.32.39-.52.7-1.1.93-1.75.2-.53.35-1.09.45-1.7.1-.61.15-1.25.16-1.91v-1.62c-.01-.67-.07-1.32-.17-1.94-.1-.62-.26-1.2-.47-1.73-.27-.69-.63-1.32-1.08-1.88-.45-.56-1-1.01-1.66-1.36-.47-.26-.99-.46-1.56-.6-.58-.14-1.21-.22-1.89-.23h-2.22v17.16Z','M1087.02,683.49v7.68h10.55v2.34h-13.3v-21.67h13.17v2.35h-10.42v6.96h9.05v2.34h-9.05Z','M1113.33,686.34c-.3-.46-.69-.84-1.17-1.16-.48-.31-1-.57-1.57-.77-.57-.21-1.12-.4-1.64-.57-.76-.25-1.54-.55-2.33-.9-.79-.35-1.51-.78-2.15-1.27-.65-.51-1.19-1.1-1.6-1.79-.41-.69-.62-1.5-.62-2.43s.21-1.77.62-2.5c.41-.73.95-1.35,1.61-1.86.67-.51,1.42-.89,2.26-1.15.84-.26,1.69-.39,2.54-.39.94,0,1.85.16,2.72.47s1.65.75,2.32,1.32c.67.57,1.21,1.25,1.62,2.05.41.8.62,1.7.64,2.69h-2.83c-.08-.62-.23-1.19-.46-1.7s-.53-.95-.91-1.32c-.38-.37-.83-.65-1.35-.86-.52-.2-1.11-.3-1.76-.3-.53,0-1.04.07-1.54.22-.5.15-.94.37-1.33.67-.4.3-.71.67-.95,1.1-.23.44-.35.94-.35,1.52,0,.62.17,1.15.48,1.58s.7.8,1.18,1.09c.47.3.97.55,1.53.74.55.2,1.07.37,1.56.52.8.25,1.61.55,2.41.9.8.35,1.54.8,2.2,1.35.65.51,1.18,1.13,1.58,1.86.4.73.6,1.58.6,2.54s-.22,1.82-.65,2.54c-.43.72-.99,1.33-1.67,1.8-.68.49-1.46.85-2.32,1.09-.86.24-1.73.37-2.59.37-1.03,0-2.05-.17-3.04-.52-1-.35-1.86-.85-2.6-1.5-.65-.57-1.17-1.23-1.55-1.99-.38-.76-.59-1.6-.62-2.54h2.81c.09.67.27,1.27.55,1.79.28.52.63.96,1.07,1.32.44.37.94.64,1.51.83s1.19.28,1.87.28c.54,0,1.06-.07,1.58-.2.52-.13.98-.34,1.39-.63.41-.28.74-.63,1-1.06.26-.43.39-.94.39-1.54,0-.67-.15-1.23-.45-1.68Z','M1133.83,671.83v2.4h-5.19v16.89h5.19v2.38h-13.1v-2.38h5.07v-16.89h-5.07v-2.4h13.1Z','M1151.97,691.74c-.38.32-.77.6-1.18.84-.69.42-1.44.73-2.25.93s-1.65.3-2.53.29c-.89,0-1.71-.15-2.46-.41s-1.42-.63-2.02-1.09c-.6-.46-1.12-1-1.56-1.62-.45-.63-.82-1.3-1.12-2.04-.31-.72-.54-1.49-.69-2.28-.15-.8-.24-1.61-.25-2.42v-2.51c0-.8.08-1.6.22-2.4s.34-1.57.62-2.3c.28-.73.62-1.42,1.04-2.05s.92-1.18,1.5-1.64c.58-.46,1.23-.82,1.96-1.09.73-.27,1.56-.4,2.47-.4,1.01,0,1.94.16,2.8.47.85.31,1.6.76,2.23,1.33.63.58,1.15,1.29,1.53,2.11s.62,1.73.71,2.75h-2.72c-.11-.62-.28-1.2-.51-1.73-.23-.53-.53-.98-.89-1.36-.38-.38-.82-.67-1.34-.89-.52-.21-1.12-.32-1.8-.32s-1.24.11-1.74.33c-.51.22-.95.52-1.33.9s-.69.82-.94,1.32-.45,1.03-.61,1.58c-.16.56-.27,1.12-.34,1.7-.07.58-.1,1.13-.1,1.67v2.54c0,.55.06,1.11.14,1.69.08.58.22,1.15.39,1.7s.41,1.08.68,1.58c.28.5.62.93,1.01,1.31.39.38.84.68,1.35.9.52.22,1.1.34,1.76.35.38,0,.77,0,1.18-.04.41-.04.81-.12,1.2-.24.39-.12.75-.28,1.09-.48.34-.2.62-.47.85-.8l.03-4.87h-4.41v-2.32h7.02l.04,7.95c-.34.4-.69.76-1.07,1.08Z','M1168.09,693.5l-8.41-16.19-.04,16.19h-2.78v-21.67h2.8l8.41,16.16.04-16.16h2.78v21.67h-2.8Z'].forEach(d => doDesignPath.addPath(new Path2D(d)));
+
+const JORNADAS_CENTER = {x:1087, y:648};
+const DODESIGN_CENTER = {x:1089, y:683};
+
+// Gradient colors for theme cycle
+const GRADIENT_COLORS = [
+  {r:255,g:60,b:0},{r:0,g:229,b:255},{r:200,g:255,b:0},
+  {r:255,g:0,b:170},{r:255,g:136,b:0},{r:123,g:97,b:255}
+];
+
+// ============================================
+// CORE FUNCTIONS
+// ============================================
+class Point {
+  constructor(x, y, col, row) {
+    this.x = x; this.y = y; this.z = 0;
+    this.originalX = x; this.originalY = y; this.originalZ = 0;
+    this.vx = 0; this.vy = 0; this.vz = 0;
+    this.col = col; this.row = row;
+    this.attachedToFinger = false;
+    this.attachedFingerX = 0; this.attachedFingerY = 0; this.attachedFingerZ = 0;
+  }
+  update(waveDx, waveDy) {
+    if (this.attachedToFinger) {
+      this.x = this.attachedFingerX; this.y = this.attachedFingerY; this.z = this.attachedFingerZ;
+      this.vx = 0; this.vy = 0; this.vz = 0;
+    } else {
+      const restX = this.originalX + (waveDx || 0);
+      const restY = this.originalY + (waveDy || 0);
+      let fx = (restX - this.x) * CONFIG.elasticity;
+      let fy = (restY - this.y) * CONFIG.elasticity;
+      let fz = (this.originalZ - this.z) * CONFIG.elasticity * 2;
+      this.vx = (this.vx + fx) * CONFIG.damping;
+      this.vy = (this.vy + fy) * CONFIG.damping;
+      this.vz = (this.vz + fz) * CONFIG.damping * 0.9;
+      this.x += this.vx; this.y += this.vy; this.z += this.vz;
+    }
+  }
+  reset() { this.attachedToFinger = false; }
+}
+
+function createGrid() {
+  points = [];
+  const us = Math.min((canvas.width - 2*CANVAS_PADDING) / logicalW, (canvas.height - 2*CANVAS_PADDING) / logicalH);
+  const svgW = logicalW * us, svgH = logicalH * us;
+  const offsetX = (canvas.width - svgW) / 2, offsetY = (canvas.height - svgH) / 2;
+  cols = CONFIG.gridDensity;
+  rows = Math.floor(cols * (svgH / svgW));
+  const spacingX = svgW / cols, spacingY = svgH / rows;
+  for (let i = 0; i <= cols; i++) {
+    points[i] = [];
+    for (let j = 0; j <= rows; j++) {
+      points[i][j] = new Point(offsetX + i * spacingX, offsetY + j * spacingY, i, j);
+    }
+  }
+}
+
+function hexToRgb(hex) {
+  hex = hex.replace('#','');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  return {r:parseInt(hex.substring(0,2),16), g:parseInt(hex.substring(2,4),16), b:parseInt(hex.substring(4,6),16)};
+}
+
+function getDistortedPoint(x, y) {
+  if (cols === 0 || rows === 0 || !points[0]) return {x, y, z:0};
+  const minX = points[0][0].originalX, minY = points[0][0].originalY;
+  const maxX = points[cols][0].originalX, maxY = points[0][rows].originalY;
+  if (x < minX || x > maxX || y < minY || y > maxY) return {x, y, z:0};
+  const u = (x - minX) / (maxX - minX) * cols, v = (y - minY) / (maxY - minY) * rows;
+  const i = Math.max(0, Math.min(cols-1, Math.floor(u))), j = Math.max(0, Math.min(rows-1, Math.floor(v)));
+  const lu = Math.max(0, Math.min(1, u-i)), lv = Math.max(0, Math.min(1, v-j));
+  const p1=points[i][j], p2=points[i+1][j], p3=points[i+1][j+1], p4=points[i][j+1];
+  const tx=p1.x+lu*(p2.x-p1.x), ty=p1.y+lu*(p2.y-p1.y), tz=p1.z+lu*(p2.z-p1.z);
+  const bx=p4.x+lu*(p3.x-p4.x), by=p4.y+lu*(p3.y-p4.y), bz=p4.z+lu*(p3.z-p4.z);
+  return {x:tx+lv*(bx-tx), y:ty+lv*(by-ty), z:tz+lv*(bz-tz)};
+}
+
+function waveAt(x, y, t) {
+  const spd = elasticSpeed * 0.07;
+  const wl = Math.max(elasticRadius, 400);
+  const nx = x / wl, ny = y / wl;
+  const amp = elasticAmplitude, el = elasticElasticity;
+  let dx = Math.sin(TWO_PI*(spd*t+nx*0.3))*0.45;
+  let dy = Math.cos(TWO_PI*(spd*t*0.83+ny*0.25))*0.40;
+  dx += Math.sin(TWO_PI*(spd*t*1.37+ny*0.2)+1.8)*0.25;
+  dy += Math.cos(TWO_PI*(spd*t*1.17+nx*0.15)+0.9)*0.28;
+  dx += Math.sin(TWO_PI*(spd*t*2.13+nx*0.4+ny*0.1)+3.7)*0.15;
+  dy += Math.cos(TWO_PI*(spd*t*1.91+ny*0.35+nx*0.08)+2.4)*0.15;
+  if (el > 0) {
+    dx += el*0.3*Math.sin(TWO_PI*(spd*t*3.17+nx*0.6)+0.5);
+    dy += el*0.3*Math.cos(TWO_PI*(spd*t*2.83+ny*0.5)+1.7);
+    dx += el*0.15*Math.sin(TWO_PI*(spd*t*4.7+nx*0.8+ny*0.3)+4.1);
+    dy += el*0.15*Math.cos(TWO_PI*(spd*t*5.1+ny*0.7+nx*0.2)+2.8);
+  }
+  if (elasticBounce > 0) {
+    const b = elasticBounce;
+    dx += b*0.5*(Math.abs(Math.sin(TWO_PI*spd*t*3.5+nx*0.3))-0.5);
+    dy += b*0.5*(Math.abs(Math.sin(TWO_PI*spd*t*4.1+ny*0.25))-0.5);
+  }
+  return {dx:dx*amp, dy:dy*amp};
+}
+
+// ============================================
+// HAND EFFECT RENDERERS
+// ============================================
+function getHandScale(lm) {
+  return Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y) / 150;
+}
+
+function drawEffectWireframe(landmarks) {
+  const opacity = CONFIG.trackingOpacity;
+  ctx.strokeStyle = `rgba(0, 255, 0, ${opacity})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let [a, b] of HAND_CONNECTIONS) {
+    ctx.moveTo(landmarks[a].x, landmarks[a].y);
+    ctx.lineTo(landmarks[b].x, landmarks[b].y);
+  }
+  ctx.stroke();
+  for (let idx of [4, 8, 12, 16, 20]) {
+    let z = landmarks[idx].z, size = 12 + z * 40;
+    let alpha = (0.7 + z * 0.3) * opacity;
+    ctx.fillStyle = `rgba(255, 68, 68, ${Math.max(0.3, Math.min(1, alpha))})`;
+    ctx.beginPath(); ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(6, size), 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(255, 200, 50, ${Math.max(0.2, Math.min(0.8, alpha * 0.5))})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(10, size + 5), 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.fillStyle = `rgba(68, 136, 255, ${opacity})`;
+  ctx.beginPath(); ctx.arc(landmarks[0].x, landmarks[0].y, 10, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawEffectSkeleton(landmarks) {
+  const s = getHandScale(landmarks);
+  ctx.save();
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 15;
+  for (let [a, b] of HAND_CONNECTIONS) {
+    ctx.beginPath(); ctx.moveTo(landmarks[a].x, landmarks[a].y); ctx.lineTo(landmarks[b].x, landmarks[b].y);
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = Math.max(4, 8*s); ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(landmarks[a].x, landmarks[a].y); ctx.lineTo(landmarks[b].x, landmarks[b].y);
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = Math.max(2, 3*s); ctx.stroke();
+  }
+  for (let i = 0; i < 21; i++) {
+    let isTip = [4,8,12,16,20].includes(i), isBase = [0,1,5,9,13,17].includes(i);
+    let r = isTip ? 6*s : (isBase ? 7*s : 4*s);
+    ctx.beginPath(); ctx.arc(landmarks[i].x, landmarks[i].y, Math.max(3, r), 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawHands() {
+  for (let lm of allHandLandmarks) {
+    if (currentEffect === 'skeleton') drawEffectSkeleton(lm);
+    else drawEffectWireframe(lm);
+  }
+  if (currentEffect === 'wireframe') {
+    ctx.strokeStyle = `rgba(255, 200, 50, ${CONFIG.trackingOpacity * 0.5})`;
+    ctx.lineWidth = 2;
+    for (let f of allFingers) {
+      ctx.beginPath(); ctx.arc(f.x, f.y, CONFIG.captureRadius, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+}
+
+// ============================================
+// THEME SYSTEM (Canvas 2D adapted)
+// ============================================
+function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+function calcDarkness(hour, minute) {
+  const h = hour + minute / 60;
+  if (h >= 16 || h < 4) return 1;
+  if (h >= 5 && h < 16) return 0;
+  return 1 - smoothstep((h - 4) / 1);
+}
+
+function lerpColor(c1, c2, t) {
+  return { r: Math.round(c1.r + (c2.r - c1.r) * t), g: Math.round(c1.g + (c2.g - c1.g) * t), b: Math.round(c1.b + (c2.b - c1.b) * t) };
+}
+
+function calcGradientColor(hour, minute) {
+  const h = (hour + minute / 60) % 6;
+  const idx = Math.floor(h), frac = h - idx;
+  return lerpColor(GRADIENT_COLORS[idx % 6], GRADIENT_COLORS[(idx + 1) % 6], smoothstep(frac));
+}
+
+function luminance(r, g, b) { return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
+
+function applyTheme(darkness, gradientColor) {
+  if (gradientColor) {
+    const { r, g, b } = gradientColor;
+    themeBgColor = `rgb(${r},${g},${b})`;
+    const lum = luminance(r, g, b);
+    const tv = lum > 0.5 ? 0 : 255;
+    themeTextColor = `rgb(${tv},${tv},${tv})`;
+    themeTextRgb = { r: tv, g: tv, b: tv };
+    themeBorderColor = lum > 0.5 ? '#1a1a1a' : '#f0ece6';
+  } else {
+    const bgVal = Math.round(255 * (1 - darkness));
+    themeBgColor = `rgb(${bgVal},${bgVal},${bgVal})`;
+    const txtVal = Math.round(255 * darkness);
+    themeTextColor = `rgb(${txtVal},${txtVal},${txtVal})`;
+    themeTextRgb = { r: txtVal, g: txtVal, b: txtVal };
+    themeBorderColor = darkness > 0.5 ? '#f0ece6' : '#1a1a1a';
+  }
+}
+
+// ============================================
+// CAMERA EFFECTS PIPELINE
+// ============================================
+function applyCameraEffect(w, h) {
+  if (cameraEffect === 'bw') {
+    const imgData = effectCtx.getImageData(0, 0, w, h);
+    const d = imgData.data, c = effectBwContrast;
+    for (let i = 0; i < d.length; i += 4) {
+      let lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+      lum = ((lum/255 - 0.5)*c + 0.5)*255;
+      d[i] = d[i+1] = d[i+2] = Math.max(0, Math.min(255, lum));
+    }
+    effectCtx.putImageData(imgData, 0, 0);
+  } else if (cameraEffect === 'outline') {
+    const imgData = effectCtx.getImageData(0, 0, w, h);
+    const src = imgData.data;
+    const gray = new Uint8Array(w * h);
+    for (let i = 0; i < gray.length; i++) gray[i] = 0.299*src[i*4] + 0.587*src[i*4+1] + 0.114*src[i*4+2];
+    const out = effectCtx.createImageData(w, h), od = out.data;
+    const thr = effectOutlineThreshold, bgBlack = effectOutlineBg === 'black', lineCol = effectOutlineColor;
+    for (let y = 1; y < h-1; y++) {
+      for (let x = 1; x < w-1; x++) {
+        const idx = y*w+x;
+        const gx = -gray[idx-w-1]+gray[idx-w+1]-2*gray[idx-1]+2*gray[idx+1]-gray[idx+w-1]+gray[idx+w+1];
+        const gy = -gray[idx-w-1]-2*gray[idx-w]-gray[idx-w+1]+gray[idx+w-1]+2*gray[idx+w]+gray[idx+w+1];
+        const mag = Math.sqrt(gx*gx+gy*gy), oi = idx*4;
+        if (mag > thr) {
+          if (lineCol==='original') { od[oi]=src[oi]; od[oi+1]=src[oi+1]; od[oi+2]=src[oi+2]; }
+          else if (lineCol==='white') { od[oi]=od[oi+1]=od[oi+2]=255; }
+          else { od[oi]=od[oi+1]=od[oi+2]=0; }
+        } else { od[oi]=od[oi+1]=od[oi+2]=bgBlack?0:255; }
+        od[oi+3] = 255;
+      }
+    }
+    effectCtx.putImageData(out, 0, 0);
+  } else if (cameraEffect === 'sketch') {
+    const imgData = effectCtx.getImageData(0, 0, w, h);
+    const src = imgData.data;
+    const gray = new Uint8Array(w*h);
+    for (let i = 0; i < gray.length; i++) gray[i] = 0.299*src[i*4] + 0.587*src[i*4+1] + 0.114*src[i*4+2];
+    const inv = new Uint8Array(gray.length);
+    for (let i = 0; i < gray.length; i++) inv[i] = 255 - gray[i];
+    const blurred = new Uint8Array(inv.length), blurR = effectSketchBlur;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let sum = 0, count = 0;
+        for (let dy = -blurR; dy <= blurR; dy++) for (let dx = -blurR; dx <= blurR; dx++) {
+          const ny = y+dy, nx = x+dx;
+          if (ny >= 0 && ny < h && nx >= 0 && nx < w) { sum += inv[ny*w+nx]; count++; }
+        }
+        blurred[y*w+x] = sum / count;
+      }
+    }
+    const out = effectCtx.createImageData(w, h), od = out.data, intensity = effectSketchIntensity;
+    for (let i = 0; i < gray.length; i++) {
+      let val = blurred[i] >= 255 ? 255 : Math.min(255, (gray[i]*256)/(256-blurred[i]));
+      val = ((val/255 - 0.5)*intensity + 0.5)*255;
+      od[i*4] = od[i*4+1] = od[i*4+2] = Math.max(0, Math.min(255, val));
+      od[i*4+3] = 255;
+    }
+    effectCtx.putImageData(out, 0, 0);
+  } else if (cameraEffect === 'cartoon') {
+    const imgData = effectCtx.getImageData(0, 0, w, h);
+    const src = imgData.data, levels = effectCartoonLevels, edgeThr = effectCartoonEdge;
+    const step = 256 / levels;
+    const gray = new Uint8Array(w*h);
+    for (let i = 0; i < gray.length; i++) gray[i] = 0.299*src[i*4] + 0.587*src[i*4+1] + 0.114*src[i*4+2];
+    for (let y = 1; y < h-1; y++) {
+      for (let x = 1; x < w-1; x++) {
+        const idx = y*w+x, oi = idx*4;
+        const gx = -gray[idx-w-1]+gray[idx-w+1]-2*gray[idx-1]+2*gray[idx+1]-gray[idx+w-1]+gray[idx+w+1];
+        const gy = -gray[idx-w-1]-2*gray[idx-w]-gray[idx-w+1]+gray[idx+w-1]+2*gray[idx+w]+gray[idx+w+1];
+        if (Math.sqrt(gx*gx+gy*gy) > edgeThr) { src[oi]=src[oi+1]=src[oi+2]=0; }
+        else { src[oi]=Math.floor(src[oi]/step)*step+step/2; src[oi+1]=Math.floor(src[oi+1]/step)*step+step/2; src[oi+2]=Math.floor(src[oi+2]/step)*step+step/2; }
+      }
+    }
+    effectCtx.putImageData(imgData, 0, 0);
+  } else if (cameraEffect === 'pointcloud') {
+    const imgData = effectCtx.getImageData(0, 0, w, h);
+    const d = imgData.data, sp = effectPcSpacing, sz = effectPcSize;
+    effectCtx.clearRect(0, 0, w, h);
+    if (effectPcBg === 'black') { effectCtx.fillStyle = '#000'; effectCtx.fillRect(0, 0, w, h); }
+    for (let y = 0; y < h; y += sp) {
+      for (let x = 0; x < w; x += sp) {
+        const i = (y*w+x)*4, r = d[i], g = d[i+1], b = d[i+2];
+        const lum = 0.299*r + 0.587*g + 0.114*b;
+        const radius = (lum/255)*sz;
+        if (radius < 0.3) continue;
+        effectCtx.fillStyle = effectPcColor==='original' ? `rgb(${r},${g},${b})` : effectPcColor==='green' ? `rgb(0,${Math.floor(lum)},0)` : '#fff';
+        effectCtx.beginPath(); effectCtx.arc(x, y, radius, 0, Math.PI*2); effectCtx.fill();
+      }
+    }
+  } else if (cameraEffect === 'blur') {
+    const bInt = effectBokehIntensity, bThr = effectBokehThreshold;
+    if (bInt > 0) {
+      const imgData = effectCtx.getImageData(0, 0, w, h), d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+        if (lum > bThr) {
+          const boost = 1 + bInt * ((lum - bThr)/(255 - bThr));
+          d[i]=Math.min(255,d[i]*boost); d[i+1]=Math.min(255,d[i+1]*boost); d[i+2]=Math.min(255,d[i+2]*boost);
+        }
+      }
+      effectCtx.putImageData(imgData, 0, 0);
+    }
+    effectCtx.filter = `blur(${effectBlurRadius}px)`;
+    effectCtx.drawImage(effectCanvas, 0, 0);
+    effectCtx.filter = 'none';
+  } else if (cameraEffect === 'liquify') {
+    const src = effectCtx.getImageData(0, 0, w, h);
+    const dst = effectCtx.createImageData(w, h);
+    const sd = src.data, dd = dst.data;
+    const force = effectLiquifyForce, scale = effectLiquifyScale, spd = effectLiquifySpeed;
+    const lt = performance.now() * 0.001 * spd;
+    for (let y = 0; y < h; y++) {
+      const ny = y / scale;
+      for (let x = 0; x < w; x++) {
+        const nx = x / scale;
+        const dx = Math.sin(nx*1.7+lt*0.8)*Math.cos(ny*2.3+lt*0.6)*force + Math.sin(nx*0.7-lt*1.1+ny*1.3)*force*0.4;
+        const dy = Math.cos(nx*2.1-lt*0.9)*Math.sin(ny*1.9+lt*0.7)*force + Math.cos(ny*0.8+lt*1.3+nx*0.9)*force*0.4;
+        const sx = Math.max(0, Math.min(w-1, Math.round(x+dx)));
+        const sy = Math.max(0, Math.min(h-1, Math.round(y+dy)));
+        const si = (sy*w+sx)*4, di = (y*w+x)*4;
+        dd[di]=sd[si]; dd[di+1]=sd[si+1]; dd[di+2]=sd[si+2]; dd[di+3]=sd[si+3];
+      }
+    }
+    effectCtx.putImageData(dst, 0, 0);
+  } else if (cameraEffect === 'frosted') {
+    effectCtx.filter = `blur(${effectFrostedBlur}px)`;
+    effectCtx.drawImage(effectCanvas, 0, 0);
+    effectCtx.filter = 'none';
+    const grain = effectFrostedGrain;
+    if (grain > 0) {
+      const imgData = effectCtx.getImageData(0, 0, w, h), d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const n = (Math.random()-0.5)*grain;
+        d[i]=Math.max(0,Math.min(255,d[i]+n)); d[i+1]=Math.max(0,Math.min(255,d[i+1]+n)); d[i+2]=Math.max(0,Math.min(255,d[i+2]+n));
+      }
+      effectCtx.putImageData(imgData, 0, 0);
+    }
+    if (effectFrostedFog > 0) {
+      effectCtx.fillStyle = `rgba(255,255,255,${effectFrostedFog})`;
+      effectCtx.fillRect(0, 0, w, h);
+    }
+  }
+}
+
+// ============================================
+// TIMECODE & COUNTDOWN
+// ============================================
+function pad(n, d) { return String(n).padStart(d, '0'); }
+
+function formatTimecode(h, m, s, f) { return `${pad(h,2)}:${pad(m,2)}:${pad(s,2)}:${pad(f,2)}`; }
+
+function updateTimecodeDisplay() {
+  if (!showTimecode) return;
+  const tcEl = document.getElementById('timecode-overlay');
+  const now = new Date();
+  const frame = Math.floor((now.getMilliseconds()/1000)*25);
+  if (useRealTime) {
+    tcEl.textContent = formatTimecode(now.getHours(), now.getMinutes(), now.getSeconds(), frame);
+  }
+  // Position relative to design area (not browser window)
+  const da = getDesignArea();
+  tcEl.style.bottom = 'auto';
+  tcEl.style.top = (da.top + da.height - tcPosY * da.scale) + 'px';
+  tcEl.style.left = (da.left + da.width / 2) + 'px';
+  tcEl.style.fontSize = (tcSize * da.scale) + 'px';
+  tcEl.style.color = themeTextColor;
+}
+
+function updateCountdown() {
+  if (!countdownEnabled) return;
+  const now = new Date();
+  const diff = countdownTarget - now;
+  const daysEl = document.getElementById('cd-days');
+  const hoursEl = document.getElementById('cd-hours');
+  const minsEl = document.getElementById('cd-mins');
+  const secsEl = document.getElementById('cd-secs');
+  if (diff <= 0) {
+    daysEl.textContent = '00'; hoursEl.textContent = '00';
+    minsEl.textContent = '00'; secsEl.textContent = '00';
+    return;
+  }
+  // Update each segment independently (fixed-width, no position shift)
+  daysEl.textContent = pad(Math.floor(diff / 86400000), 2);
+  hoursEl.textContent = pad(Math.floor((diff / 3600000) % 24), 2);
+  minsEl.textContent = pad(Math.floor((diff / 60000) % 60), 2);
+  secsEl.textContent = pad(Math.floor((diff / 1000) % 60), 2);
+  // Position relative to design area
+  const cdOv = document.getElementById('countdown-overlay');
+  const da = getDesignArea();
+  cdOv.style.bottom = 'auto';
+  cdOv.style.top = (da.top + da.height - cdPosY * da.scale) + 'px';
+  cdOv.style.left = (da.left + da.width / 2) + 'px';
+  cdOv.style.fontSize = (cdSize * da.scale) + 'px';
+  cdOv.style.color = themeTextColor;
+}
+
+// ============================================
+// QR CODE (Canvas 2D adapted)
+// ============================================
+function updateQRCode() {
+  const htmlEl = document.getElementById('qr-overlay-html');
+  if (!qrEnabled || !qrUrl) { htmlEl.style.display = 'none'; return; }
+  const qr = qrcode(0, 'M');
+  qr.addData(qrUrl);
+  qr.make();
+  const dataUrl = qr.createDataURL(4, 0);
+  // In v08 Canvas 2D mode, QR is always HTML overlay
+  htmlEl.src = dataUrl;
+  htmlEl.style.display = 'block';
+  // Position relative to canvas scaling (with padding)
+  const us = Math.min((canvas.width - 2*CANVAS_PADDING) / logicalW, (canvas.height - 2*CANVAS_PADDING) / logicalH);
+  const offsetX = (canvas.width - logicalW * us) / 2;
+  const offsetY = (canvas.height - logicalH * us) / 2;
+  htmlEl.style.left = (offsetX + qrX * us) + 'px';
+  htmlEl.style.top = (offsetY + qrY * us) + 'px';
+  htmlEl.style.width = (qrSize * us) + 'px';
+  htmlEl.style.height = (qrSize * us) + 'px';
+}
+
+// ============================================
+// VIDEO DEVICE ENUMERATION
+// ============================================
+const KNOWN_VIDEO_SOURCES = [
+  { name: 'Camara Web', keywords: ['webcam','camera','cam','facetime','integrated'] },
+  { name: 'iPhone (Continuity Camera)', keywords: ['iphone','continuity'] },
+  { name: 'Xbox 360 Kinect', keywords: ['kinect','xbox','nui'] },
+  { name: 'OBS Virtual Camera', keywords: ['obs','virtual camera','obs-camera'] },
+  { name: 'Microsoft Teams', keywords: ['teams'] },
+  { name: 'NDI Virtual Input', keywords: ['ndi','newtek'] }
+];
+
+async function enumerateVideoDevices() {
+  const select = document.getElementById('sel-video-source');
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+    select.innerHTML = '';
+    const matched = new Set(), sourceOptions = [];
+    KNOWN_VIDEO_SOURCES.forEach(source => {
+      const md = videoDevices.find((d, i) => {
+        if (matched.has(i)) return false;
+        return source.keywords.some(kw => (d.label||'').toLowerCase().includes(kw));
+      });
+      const opt = document.createElement('option');
+      if (md) { const idx = videoDevices.indexOf(md); matched.add(idx); opt.value = md.deviceId; opt.textContent = source.name + ' \u2713'; opt.style.color = '#8f8'; }
+      else { opt.value = '__undetected__' + source.name; opt.textContent = source.name + ' \u2717'; opt.style.color = '#888'; }
+      sourceOptions.push(opt);
+    });
+    videoDevices.forEach((d, idx) => {
+      if (matched.has(idx)) return;
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = (d.label || `Dispositivo ${idx+1}`) + ' \u2713';
+      opt.style.color = '#8f8';
+      sourceOptions.push(opt);
+    });
+    sourceOptions.forEach(o => select.appendChild(o));
+    let found = false;
+    if (selectedVideoDeviceLabel) {
+      for (const opt of select.options) {
+        if (opt.textContent.replace(/\s+[\u2713\u2717]$/, '') === selectedVideoDeviceLabel) {
+          opt.selected = true;
+          selectedVideoDeviceId = opt.value.startsWith('__undetected__') ? null : opt.value;
+          found = true; break;
+        }
+      }
+    }
+    if (!found) {
+      const firstDet = [...select.options].find(o => !o.value.startsWith('__undetected__'));
+      if (firstDet) { firstDet.selected = true; selectedVideoDeviceId = firstDet.value; }
+    }
+  } catch (err) {
+    console.error('Cannot enumerate devices:', err);
+    select.innerHTML = '';
+    KNOWN_VIDEO_SOURCES.forEach(s => { const o = document.createElement('option'); o.value = '__undetected__'+s.name; o.textContent = s.name; select.appendChild(o); });
+  }
+}
+
+// ============================================
+// CAMERA MANAGEMENT (MediaPipe + Effects)
+// ============================================
+let cameraStream = null;
+
+async function startCamera(deviceId) {
+  const btn = document.getElementById('btn-camera');
+  btn.disabled = true; btn.textContent = 'A iniciar...';
+  document.getElementById('status').textContent = 'A iniciar camera...';
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Browser nao suporta acesso a camera.');
+    }
+    const constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
+    if (deviceId) constraints.video.deviceId = { exact: deviceId };
+    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+    webcam.srcObject = cameraStream;
+    await enumerateVideoDevices();
+
+    // Init MediaPipe Hands
+    hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+    hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
+    hands.onResults(onHandResults);
+    mpCamera = new Camera(webcam, {
+      onFrame: async () => { if (isRunning) await hands.send({ image: webcam }); },
+      width: 1280, height: 720
+    });
+    await mpCamera.start();
+    isRunning = true;
+    cameraEnabled = true;
+    document.getElementById('status').textContent = 'Camera ativa - Move as maos!';
+    btn.textContent = '\u2713 Ativa'; btn.classList.add('active');
+    btn.disabled = false;
+  } catch (error) {
+    console.error('Erro camera:', error);
+    document.getElementById('status').textContent = 'Erro: ' + error.message;
+    btn.textContent = 'Tentar Novamente'; btn.disabled = false;
+  }
+}
+
+function stopCamera() {
+  isRunning = false;
+  if (mpCamera) mpCamera.stop();
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  webcam.srcObject = null;
+  cameraEnabled = false;
+  effectCanvas.style.display = 'none';
+  document.getElementById('status').textContent = 'Camera desligada';
+  const btn = document.getElementById('btn-camera');
+  btn.textContent = 'Ativar Camera'; btn.classList.remove('active');
+}
+
+function onHandResults(results) {
+  allFingers = [];
+  allHandLandmarks = [];
+  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    for (let handIdx = 0; handIdx < results.multiHandLandmarks.length; handIdx++) {
+      const lm = results.multiHandLandmarks[handIdx];
+      // Mirror: camera feed is drawn flipped horizontally (selfie), so landmarks must also flip X
+      const landmarks = lm.map(p => ({
+        x: (1 - p.x) * canvas.width,
+        y: p.y * canvas.height,
+        z: (p.z || 0) * -1
+      }));
+      allHandLandmarks.push(landmarks);
+      for (let tipIdx of [4, 8, 12, 16, 20]) {
+        allFingers.push({ x: landmarks[tipIdx].x, y: landmarks[tipIdx].y, z: landmarks[tipIdx].z });
+      }
+    }
+  }
+}
+
+// ============================================
+// FORMAT SWITCHING
+// ============================================
+function applyCanvasFormat(fmt) {
+  const dims = FORMAT_DIMS[fmt];
+  if (!dims) return;
+  logicalW = dims.w;
+  logicalH = dims.h;
+  createGrid();
+  updateQRCode();
+}
+
+// ============================================
+// DESIGN AREA HELPER
+// ============================================
+function getDesignArea() {
+  const us = Math.min((canvas.width - 2*CANVAS_PADDING) / logicalW, (canvas.height - 2*CANVAS_PADDING) / logicalH);
+  const svgW = logicalW * us, svgH = logicalH * us;
+  return {
+    left: (canvas.width - svgW) / 2,
+    top: (canvas.height - svgH) / 2,
+    width: svgW, height: svgH, scale: us
+  };
+}
+
+// ============================================
+// RENDER FUNCTIONS
+// ============================================
+function render() {
+  const cw = canvas.width, ch = canvas.height;
+
+  // 1. Compute scale/offset FIRST (with padding)
+  const us = Math.min((cw - 2*CANVAS_PADDING) / logicalW, (ch - 2*CANVAS_PADDING) / logicalH);
+  const svgW = logicalW * us, svgH = logicalH * us;
+  const offsetX = (cw - svgW) / 2, offsetY = (ch - svgH) / 2;
+
+  // 2. Background — padding area always 100% black, design area uses theme color
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.fillStyle = themeBgColor;
+  ctx.fillRect(offsetX, offsetY, svgW, svgH);
+
+  // 3. Camera feed with effects — drawn WITHIN design area (proportional)
+  if (cameraEnabled && webcam.readyState >= 2) {
+    const ew = effectCanvas.width, eh = effectCanvas.height;
+    effectCtx.drawImage(webcam, 0, 0, ew, eh);
+    if (cameraEffect !== 'none') {
+      applyCameraEffect(ew, eh);
+    }
+    ctx.globalAlpha = CONFIG.videoOpacity;
+    // Mirror camera feed horizontally (selfie mode) so user sees themselves naturally
+    ctx.save();
+    ctx.translate(offsetX + svgW, offsetY);
+    ctx.scale(-1, 1);
+    ctx.drawImage(effectCanvas, 0, 0, svgW, svgH);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  // 4. Reset finger attachment + apply wave + fingers
+  for (let i = 0; i <= cols; i++)
+    for (let j = 0; j <= rows; j++)
+      points[i][j].reset();
+
+  for (let finger of allFingers) {
+    for (let i = 0; i <= cols; i++) {
+      for (let j = 0; j <= rows; j++) {
+        const p = points[i][j];
+        const dist = Math.sqrt((p.x - finger.x)**2 + (p.y - finger.y)**2);
+        if (dist < CONFIG.captureRadius) {
+          p.attachedToFinger = true;
+          p.attachedFingerX = finger.x;
+          p.attachedFingerY = finger.y;
+          p.attachedFingerZ = finger.z * 500;
+        }
+      }
+    }
+  }
+
+  // 5. Update physics with wave displacement
+  for (let i = 0; i <= cols; i++) {
+    for (let j = 0; j <= rows; j++) {
+      const p = points[i][j];
+      let wdx = 0, wdy = 0;
+      if (elasticAnimEnabled) {
+        const w = waveAt(p.originalX, p.originalY, animTime);
+        wdx = w.dx; wdy = w.dy;
+      }
+      p.update(wdx, wdy);
+    }
+  }
+
+  // 6. Draw TRAMA elements — clip to border rect so no polylines escape the frame
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(offsetX, offsetY, svgW, svgH);
+  ctx.clip();
+  drawDistortedPolylines(offsetX, offsetY, svgW, svgH, us);
+  drawDistortedSubtitle(offsetX, offsetY, us);
+  drawDistortedLetters(offsetX, offsetY, svgW, svgH);
+  ctx.restore();
+
+  // 7. Border on top (not clipped, so it's crisp)
+  drawStaticBorder(offsetX, offsetY, svgW, svgH);
+
+  // 8. Hand overlay
+  drawHands();
+}
+
+function drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale) {
+  // Polyline SVG data is ALWAYS in DESIGN_W×DESIGN_H (1920×1080) coordinates.
+  // Edge pinning: vertices near design edges snap to the current frame borders.
+  const SUB = 30;
+  for (let polyline of svgPolylines) {
+    let coords = polyline.points.trim().split(/\s+/), rawPts = [];
+    for (let i = 0; i < coords.length; i += 2) rawPts.push({ x: parseFloat(coords[i]), y: parseFloat(coords[i+1]) });
+    let pts = [];
+    for (let seg = 0; seg < rawPts.length - 1; seg++) {
+      let isLast = (seg === rawPts.length - 2);
+      for (let s = 0; s <= (isLast ? SUB : SUB - 1); s++) {
+        let t = s / SUB;
+        let svgX = rawPts[seg].x + (rawPts[seg+1].x - rawPts[seg].x) * t;
+        let svgY = rawPts[seg].y + (rawPts[seg+1].y - rawPts[seg].y) * t;
+        // Map using DESIGN dimensions (always 1920×1080), not logicalW/logicalH
+        let canvasX = (svgX / DESIGN_W) * svgW + offsetX;
+        let canvasY = (svgY / DESIGN_H) * svgH + offsetY;
+        // Edge pinning: snap vertices near design edges to frame borders
+        let isEdge = false;
+        if (svgX <= EDGE_M || svgX < 0) { canvasX = offsetX; isEdge = true; }
+        else if (svgX >= DESIGN_W - EDGE_M || svgX > DESIGN_W) { canvasX = offsetX + svgW; isEdge = true; }
+        if (svgY <= EDGE_M || svgY < 0) { canvasY = offsetY; isEdge = true; }
+        else if (svgY >= DESIGN_H - EDGE_M || svgY > DESIGN_H) { canvasY = offsetY + svgH; isEdge = true; }
+        // Edge points stay static (pinned to frame); interior points get distorted
+        if (isEdge) {
+          pts.push({x: canvasX, y: canvasY, z: 0});
+        } else {
+          pts.push(getDistortedPoint(canvasX, canvasY));
+        }
+      }
+    }
+    if (pts.length < 2) continue;
+    const rgb = hexToRgb(polyline.color);
+    for (let i = 1; i < pts.length; i++) {
+      let nZ = Math.max(0, Math.min(1, ((pts[i-1].z + pts[i].z) / 2 + 150) / 300));
+      ctx.beginPath(); ctx.moveTo(pts[i-1].x, pts[i-1].y); ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.strokeStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${Math.min(1, 0.5 + nZ)})`;
+      ctx.lineWidth = 4 * (0.5 + nZ);
+      if (nZ > 0.7) { ctx.shadowColor = polyline.color; ctx.shadowBlur = (nZ - 0.7) * 20; } else { ctx.shadowBlur = 0; }
+      ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawStaticBorder(offsetX, offsetY, svgW, svgH) {
+  // Border is STATIC — never deformed. Polyline vertices are pinned to it.
+  // Uses themeTextColor so it follows the theme (dark border on light, light on dark)
+  ctx.strokeStyle = themeTextColor;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(offsetX, offsetY, svgW, svgH);
+}
+
+function drawDistortedSubtitle(offsetX, offsetY, scale) {
+  drawPath2DDistorted(jornadasPath, JORNADAS_CENTER.x, JORNADAS_CENTER.y, offsetX, offsetY, scale, false);
+  drawPath2DDistorted(doDesignPath, DODESIGN_CENTER.x, DODESIGN_CENTER.y, offsetX, offsetY, scale, false);
+}
+
+function drawDistortedLetters(offsetX, offsetY, svgW, svgH) {
+  // Per-vertex grid distortion: each vertex of each letter is independently distorted
+  // through the elastic grid, exactly like polylines. This keeps letters locked to the lines.
+  const {r, g, b} = themeTextRgb;
+  ctx.fillStyle = `rgba(${r},${g},${b},1)`;
+  ctx.strokeStyle = `rgba(${r},${g},${b},1)`;
+  ctx.lineWidth = 0.68 * (svgW / DESIGN_W);
+  ctx.lineJoin = 'round';
+  for (let letterSubPaths of tramaParsed) {
+    ctx.beginPath();
+    for (let subPath of letterSubPaths) {
+      for (let pi = 0; pi < subPath.length; pi++) {
+        const pt = subPath[pi];
+        // Map from SVG design coords (1920×1080) to canvas coords — same mapping as polylines
+        const canvasX = (pt.x / DESIGN_W) * svgW + offsetX;
+        const canvasY = (pt.y / DESIGN_H) * svgH + offsetY;
+        const dp = getDistortedPoint(canvasX, canvasY);
+        if (pi === 0) ctx.moveTo(dp.x, dp.y);
+        else ctx.lineTo(dp.x, dp.y);
+      }
+      ctx.closePath();
+    }
+    ctx.fill('evenodd');
+    ctx.stroke();
+  }
+}
+
+function drawPath2DDistorted(path, svgCX, svgCY, offsetX, offsetY, scale, hasStroke) {
+  // Simple grid-following: look up where the letter center is deformed to,
+  // then translate + uniform scale. No Jacobian/rotation/shear — keeps letters flat.
+  const cX = offsetX + svgCX * scale;
+  const cY = offsetY + svgCY * scale;
+  const pc = getDistortedPoint(cX, cY);
+  const {r, g, b} = themeTextRgb;
+  ctx.save();
+  ctx.translate(pc.x, pc.y);
+  ctx.scale(scale, scale);
+  ctx.translate(-svgCX, -svgCY);
+  ctx.fillStyle = `rgba(${r},${g},${b},1)`;
+  ctx.fill(path);
+  if (hasStroke) { ctx.strokeStyle = `rgba(${r},${g},${b},1)`; ctx.lineWidth = 0.68; ctx.stroke(path); }
+  ctx.restore();
+}
+
+// ============================================
+// MAIN ANIMATION LOOP
+// ============================================
+function animate(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const delta = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+  animTime += delta / 1000;
+
+  // Theme update
+  const realNow = new Date();
+  if (gradientCycleEnabled) {
+    applyTheme(0, calcGradientColor(realNow.getHours(), realNow.getMinutes()));
+  } else if (themeMode === 'light') { applyTheme(0); }
+  else if (themeMode === 'dark') { applyTheme(1); }
+  else { applyTheme(calcDarkness(realNow.getHours(), realNow.getMinutes())); }
+
+  // Render
+  render();
+
+  // Capture recording frame
+  if (isRecording && recCtx) drawRecFrame();
+
+  // Overlays
+  updateTimecodeDisplay();
+  updateCountdown();
+
+  requestAnimationFrame(animate);
+}
+
+// ============================================
+// UI SECTION TOGGLE
+// ============================================
+function toggleSection(header) {
+  header.classList.toggle('closed');
+  const content = header.nextElementSibling;
+  content.classList.toggle('collapsed');
+}
+
+function showEffectParams(effect) {
+  document.querySelectorAll('.effect-params').forEach(p => p.classList.remove('visible'));
+  const panel = document.getElementById('ep-' + effect);
+  if (panel) panel.classList.add('visible');
+}
+
+// ============================================
+// EXPORT PNG
+// ============================================
+function exportPNG() {
+  const link = document.createElement('a');
+  link.download = `trama-v08-${Date.now()}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ============================================
+// VIDEO RECORDING (H.264 / VP9 / VP8, 25fps)
+// ============================================
+function drawRecFrame() {
+  if (!recCtx) return;
+  const rw = recCanvas.width, rh = recCanvas.height;
+  // Fill background first — always black (covers letterbox areas for non-landscape formats)
+  recCtx.fillStyle = '#000000';
+  recCtx.fillRect(0, 0, rw, rh);
+  // Fit the main canvas proportionally into the 1920×1080 recording canvas
+  const mainAR = canvas.width / canvas.height;
+  const recAR = rw / rh;
+  let dw, dh, dx, dy;
+  if (mainAR > recAR) {
+    dw = rw; dh = rw / mainAR; dx = 0; dy = (rh - dh) / 2;
+  } else {
+    dh = rh; dw = rh * mainAR; dy = 0; dx = (rw - dw) / 2;
+  }
+  recCtx.drawImage(canvas, dx, dy, dw, dh);
+  // Draw QR overlay if HTML-only mode
+  if (qrEnabled && qrUrl) {
+    const htmlEl = document.getElementById('qr-overlay-html');
+    if (htmlEl.naturalWidth > 0) {
+      const us = Math.min(rw / logicalW, rh / logicalH);
+      const ox = (rw - logicalW * us) / 2;
+      const oy = (rh - logicalH * us) / 2;
+      recCtx.drawImage(htmlEl, ox + qrX * us, oy + qrY * us, qrSize * us, qrSize * us);
+    }
+  }
+}
+
+function startRecording() {
+  const btn = document.getElementById('btn-record');
+  const status = document.getElementById('rec-status');
+  // Always record at HD 1920×1080 (YouTube standard), regardless of current canvas format
+  const REC_W = 1920, REC_H = 1080;
+  recCanvas = document.createElement('canvas');
+  recCanvas.width = REC_W;
+  recCanvas.height = REC_H;
+  recCtx = recCanvas.getContext('2d');
+  const stream = recCanvas.captureStream(25);
+  // Try codecs: H.264 preferred for YouTube compatibility, then VP9 (also YouTube-friendly)
+  const codecs = ['video/webm;codecs=h264', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  let mimeType = codecs.find(c => MediaRecorder.isTypeSupported(c)) || 'video/webm';
+  const usedCodec = mimeType.includes('h264') ? 'H.264' : mimeType.includes('vp9') ? 'VP9' : mimeType.includes('vp8') ? 'VP8' : 'WebM';
+  recordedChunks = [];
+  try {
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: mimeType,
+      videoBitsPerSecond: 25000000 // 25 Mbps — well above YouTube's 8 Mbps recommendation for 1080p
+    });
+  } catch (e) {
+    mediaRecorder = new MediaRecorder(stream);
+    mimeType = 'video/webm';
+  }
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trama-v08-${REC_W}x${REC_H}-${usedCodec}-${Date.now()}.webm`;
+    a.click();
+    URL.revokeObjectURL(url);
+    recCanvas = null; recCtx = null;
+    status.textContent = `Exportado ${usedCodec} ${REC_W}×${REC_H} @ 25fps`;
+    btn.textContent = 'Gravar HD 1920×1080';
+    btn.classList.remove('active');
+    isRecording = false;
+  };
+  mediaRecorder.start(100);
+  isRecording = true;
+  btn.textContent = `● REC ${usedCodec}`;
+  btn.classList.add('active');
+  status.textContent = `${usedCodec} ${REC_W}×${REC_H} 25fps 25Mbps`;
+  // Countdown timer
+  let remaining = recDuration;
+  setTimeout(() => { status.textContent = `${remaining}s restantes`; }, 500);
+  recTimer = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(recTimer); recTimer = null;
+      stopRecording();
+    } else {
+      status.textContent = `${remaining}s restantes`;
+    }
+  }, 1000);
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  if (recTimer) { clearInterval(recTimer); recTimer = null; }
+}
+
+function updateRecordButtonLabel() {
+  const btn = document.getElementById('btn-record');
+  if (!isRecording) btn.textContent = 'Gravar HD 1920\u00d71080';
+}
+
+// ============================================
+// SETTINGS SAVE/LOAD
+// ============================================
+function collectSettings() {
+  return {
+    version: 2,
+    interaction: {
+      handEffect: document.getElementById('handEffect').value,
+      elasticity: document.getElementById('r-elasticity').value,
+      density: document.getElementById('r-density').value,
+      capture: document.getElementById('r-capture').value,
+      tracking: document.getElementById('r-tracking').value
+    },
+    animation: {
+      enabled: document.getElementById('toggle-elastic').checked,
+      speed: document.getElementById('r-speed').value,
+      amplitude: document.getElementById('r-amplitude').value,
+      depth: document.getElementById('r-depth').value,
+      radius: document.getElementById('r-radius').value,
+      bounce: document.getElementById('r-bounce').value
+    },
+    camera: {
+      opacity: document.getElementById('r-vidopacity').value,
+      effect: document.getElementById('sel-camera-effect').value,
+      bwContrast: effectBwContrast,
+      outlineThreshold: effectOutlineThreshold,
+      outlineBg: effectOutlineBg,
+      outlineColor: effectOutlineColor,
+      sketchIntensity: effectSketchIntensity,
+      sketchBlur: effectSketchBlur,
+      cartoonLevels: effectCartoonLevels,
+      cartoonEdge: effectCartoonEdge,
+      pcSpacing: effectPcSpacing,
+      pcSize: effectPcSize,
+      pcColor: effectPcColor,
+      pcBg: effectPcBg,
+      blurRadius: effectBlurRadius,
+      bokehIntensity: effectBokehIntensity,
+      bokehThreshold: effectBokehThreshold,
+      liquifyForce: effectLiquifyForce,
+      liquifyScale: effectLiquifyScale,
+      liquifySpeed: effectLiquifySpeed,
+      frostedBlur: effectFrostedBlur,
+      frostedGrain: effectFrostedGrain,
+      frostedFog: effectFrostedFog,
+      videoDeviceLabel: selectedVideoDeviceLabel
+    },
+    visual: {
+      theme: document.getElementById('sel-theme').value,
+      gradient: document.getElementById('toggle-gradient').checked,
+      format: document.getElementById('sel-format').value
+    },
+    timecode: {
+      enabled: document.getElementById('toggle-timecode').checked,
+      realtime: document.getElementById('toggle-realtime').checked,
+      posY: document.getElementById('r-tc-y').value,
+      size: document.getElementById('r-tc-size').value
+    },
+    countdown: {
+      enabled: document.getElementById('toggle-countdown').checked,
+      title: document.getElementById('input-cd-title').value,
+      date: document.getElementById('input-cd-date').value,
+      posY: document.getElementById('r-cd-y').value,
+      size: document.getElementById('r-cd-size').value
+    },
+    qr: {
+      enabled: document.getElementById('toggle-qr').checked,
+      url: document.getElementById('input-qr-url').value,
+      size: document.getElementById('r-qr-size').value,
+      x: document.getElementById('r-qr-x').value,
+      y: document.getElementById('r-qr-y').value
+    },
+    recording: {
+      duration: document.getElementById('r-rec-dur').value
+    }
+  };
+}
+
+function applySettings(s) {
+  if (!s || (s.version !== 2 && s.version !== 1)) return;
+  function setVal(id, val, evt) {
+    const el = document.getElementById(id);
+    if (!el || val === undefined || val === null) return;
+    if (el.type === 'checkbox') el.checked = !!val;
+    else el.value = val;
+    el.dispatchEvent(new Event(evt || 'input', { bubbles: true }));
+  }
+  if (s.interaction) {
+    setVal('handEffect', s.interaction.handEffect, 'change');
+    setVal('r-elasticity', s.interaction.elasticity, 'input');
+    setVal('r-density', s.interaction.density, 'input');
+    setVal('r-capture', s.interaction.capture, 'input');
+    setVal('r-tracking', s.interaction.tracking, 'input');
+  }
+  if (s.animation) {
+    setVal('toggle-elastic', s.animation.enabled, 'change');
+    setVal('r-speed', s.animation.speed, 'input');
+    setVal('r-amplitude', s.animation.amplitude, 'input');
+    setVal('r-depth', s.animation.depth, 'input');
+    setVal('r-radius', s.animation.radius, 'input');
+    setVal('r-bounce', s.animation.bounce, 'input');
+  }
+  if (s.camera) {
+    setVal('r-vidopacity', s.camera.opacity, 'input');
+    setVal('sel-camera-effect', s.camera.effect, 'change');
+    if (s.camera.videoDeviceLabel) selectedVideoDeviceLabel = s.camera.videoDeviceLabel;
+  }
+  if (s.visual) {
+    setVal('sel-theme', s.visual.theme, 'change');
+    setVal('toggle-gradient', s.visual.gradient, 'change');
+    setVal('sel-format', s.visual.format, 'change');
+  }
+  if (s.timecode) {
+    setVal('toggle-timecode', s.timecode.enabled, 'change');
+    setVal('toggle-realtime', s.timecode.realtime, 'change');
+    setVal('r-tc-y', s.timecode.posY, 'input');
+    setVal('r-tc-size', s.timecode.size, 'input');
+  }
+  if (s.countdown) {
+    setVal('toggle-countdown', s.countdown.enabled, 'change');
+    setVal('input-cd-title', s.countdown.title, 'input');
+    setVal('input-cd-date', s.countdown.date, 'change');
+    setVal('r-cd-y', s.countdown.posY, 'input');
+    setVal('r-cd-size', s.countdown.size, 'input');
+  }
+  if (s.qr) {
+    setVal('input-qr-url', s.qr.url, 'input');
+    setVal('r-qr-size', s.qr.size, 'input');
+    setVal('r-qr-x', s.qr.x, 'input');
+    setVal('r-qr-y', s.qr.y, 'input');
+    setVal('toggle-qr', s.qr.enabled, 'change');
+  }
+  if (s.recording) {
+    setVal('r-rec-dur', s.recording.duration, 'input');
+  }
+}
+
+// ============================================
+// INIT & EVENT LISTENERS
+// ============================================
+function init() {
+  canvas = document.getElementById('mainCanvas');
+  ctx = canvas.getContext('2d');
+  webcam = document.getElementById('webcam');
+  effectCanvas = document.getElementById('effectCanvas');
+  effectCtx = effectCanvas.getContext('2d');
+
+  function resizeAll() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    effectCanvas.width = canvas.width;
+    effectCanvas.height = canvas.height;
+    createGrid();
+    updateQRCode();
+  }
+  resizeAll();
+  window.addEventListener('resize', resizeAll);
+
+  // === Menu toggle ===
+  const menuToggle = document.getElementById('menuToggle');
+  const controlsPanel = document.getElementById('controls');
+  menuToggle.addEventListener('click', (e) => { e.stopPropagation(); menuToggle.classList.toggle('open'); controlsPanel.classList.toggle('visible'); });
+  document.addEventListener('click', (e) => { if (!controlsPanel.contains(e.target) && !menuToggle.contains(e.target)) { menuToggle.classList.remove('open'); controlsPanel.classList.remove('visible'); } });
+
+  // === INTERACAO ===
+  document.getElementById('handEffect').addEventListener('change', function() { currentEffect = this.value; });
+  document.getElementById('r-elasticity').addEventListener('input', function() { CONFIG.elasticity = parseFloat(this.value); document.getElementById('v-elasticity').textContent = this.value; });
+  document.getElementById('r-density').addEventListener('input', function() { CONFIG.gridDensity = parseInt(this.value); document.getElementById('v-density').textContent = this.value; createGrid(); });
+  document.getElementById('r-capture').addEventListener('input', function() { CONFIG.captureRadius = parseInt(this.value); document.getElementById('v-capture').textContent = this.value; });
+  document.getElementById('r-tracking').addEventListener('input', function() { CONFIG.trackingOpacity = parseInt(this.value)/100; document.getElementById('v-tracking').textContent = this.value + '%'; });
+
+  // === ANIMACAO ===
+  document.getElementById('toggle-elastic').addEventListener('change', function() {
+    elasticAnimEnabled = this.checked;
+    document.getElementById('elastic-params').style.display = this.checked ? '' : 'none';
+  });
+  document.getElementById('r-speed').addEventListener('input', function() { elasticSpeed = parseFloat(this.value); document.getElementById('v-speed').textContent = parseFloat(this.value).toFixed(1); });
+  document.getElementById('r-amplitude').addEventListener('input', function() { elasticAmplitude = parseInt(this.value); document.getElementById('v-amplitude').textContent = this.value; });
+  document.getElementById('r-depth').addEventListener('input', function() { elasticElasticity = parseFloat(this.value); document.getElementById('v-depth').textContent = parseFloat(this.value).toFixed(2); });
+  document.getElementById('r-radius').addEventListener('input', function() { elasticRadius = parseInt(this.value); document.getElementById('v-radius').textContent = this.value; });
+  document.getElementById('r-bounce').addEventListener('input', function() { elasticBounce = parseFloat(this.value); document.getElementById('v-bounce').textContent = parseFloat(this.value).toFixed(2); });
+
+  // === CAMERA ===
+  document.getElementById('btn-camera').addEventListener('click', function() {
+    if (cameraEnabled) stopCamera();
+    else startCamera(selectedVideoDeviceId);
+  });
+  document.getElementById('sel-video-source').addEventListener('change', async function() {
+    const val = this.value;
+    const opt = this.options[this.selectedIndex];
+    selectedVideoDeviceLabel = opt ? opt.textContent.replace(/\s+[\u2713\u2717]$/, '') : '';
+    if (val.startsWith('__undetected__')) { selectedVideoDeviceId = null; return; }
+    selectedVideoDeviceId = val;
+    if (cameraEnabled && selectedVideoDeviceId) {
+      stopCamera();
+      await startCamera(selectedVideoDeviceId);
+    }
+  });
+  document.getElementById('r-vidopacity').addEventListener('input', function() {
+    CONFIG.videoOpacity = parseInt(this.value)/100;
+    document.getElementById('v-vidopacity').textContent = this.value + '%';
+  });
+  document.getElementById('sel-camera-effect').addEventListener('change', function() {
+    cameraEffect = this.value;
+    showEffectParams(this.value);
+    if (cameraEffect === 'none' && effectCtx) effectCtx.clearRect(0, 0, effectCanvas.width, effectCanvas.height);
+  });
+
+  // Camera effect sliders
+  document.getElementById('r-bw-contrast').addEventListener('input', function() { effectBwContrast = parseFloat(this.value); document.getElementById('v-bw-c').textContent = parseFloat(this.value).toFixed(1); });
+  document.getElementById('r-outline-threshold').addEventListener('input', function() { effectOutlineThreshold = parseInt(this.value); document.getElementById('v-ol-t').textContent = this.value; });
+  document.getElementById('sel-outline-bg').addEventListener('change', function() { effectOutlineBg = this.value; });
+  document.getElementById('sel-outline-color').addEventListener('change', function() { effectOutlineColor = this.value; });
+  document.getElementById('r-sketch-intensity').addEventListener('input', function() { effectSketchIntensity = parseFloat(this.value); document.getElementById('v-sk-i').textContent = parseFloat(this.value).toFixed(1); });
+  document.getElementById('r-sketch-blur').addEventListener('input', function() { effectSketchBlur = parseInt(this.value); document.getElementById('v-sk-b').textContent = this.value; });
+  document.getElementById('r-cartoon-levels').addEventListener('input', function() { effectCartoonLevels = parseInt(this.value); document.getElementById('v-ct-l').textContent = this.value; });
+  document.getElementById('r-cartoon-edge').addEventListener('input', function() { effectCartoonEdge = parseInt(this.value); document.getElementById('v-ct-e').textContent = this.value; });
+  document.getElementById('r-pc-spacing').addEventListener('input', function() { effectPcSpacing = parseInt(this.value); document.getElementById('v-pc-s').textContent = this.value; });
+  document.getElementById('r-pc-size').addEventListener('input', function() { effectPcSize = parseFloat(this.value); document.getElementById('v-pc-sz').textContent = this.value; });
+  document.getElementById('sel-pc-color').addEventListener('change', function() { effectPcColor = this.value; });
+  document.getElementById('sel-pc-bg').addEventListener('change', function() { effectPcBg = this.value; });
+  document.getElementById('r-blur-radius').addEventListener('input', function() { effectBlurRadius = parseInt(this.value); document.getElementById('v-bl-r').textContent = this.value; });
+  document.getElementById('r-bokeh-intensity').addEventListener('input', function() { effectBokehIntensity = parseFloat(this.value); document.getElementById('v-bl-i').textContent = parseFloat(this.value).toFixed(1); });
+  document.getElementById('r-bokeh-threshold').addEventListener('input', function() { effectBokehThreshold = parseInt(this.value); document.getElementById('v-bl-t').textContent = this.value; });
+  document.getElementById('r-liquify-force').addEventListener('input', function() { effectLiquifyForce = parseInt(this.value); document.getElementById('v-lq-f').textContent = this.value; });
+  document.getElementById('r-liquify-scale').addEventListener('input', function() { effectLiquifyScale = parseInt(this.value); document.getElementById('v-lq-s').textContent = this.value; });
+  document.getElementById('r-liquify-speed').addEventListener('input', function() { effectLiquifySpeed = parseFloat(this.value); document.getElementById('v-lq-sp').textContent = parseFloat(this.value).toFixed(1); });
+  document.getElementById('r-frosted-blur').addEventListener('input', function() { effectFrostedBlur = parseInt(this.value); document.getElementById('v-fr-b').textContent = this.value; });
+  document.getElementById('r-frosted-grain').addEventListener('input', function() { effectFrostedGrain = parseInt(this.value); document.getElementById('v-fr-g').textContent = this.value; });
+  document.getElementById('r-frosted-fog').addEventListener('input', function() { effectFrostedFog = parseFloat(this.value); document.getElementById('v-fr-f').textContent = parseFloat(this.value).toFixed(2); });
+
+  // === VISUAL ===
+  document.getElementById('sel-theme').addEventListener('change', function() { themeMode = this.value; });
+  document.getElementById('toggle-gradient').addEventListener('change', function() { gradientCycleEnabled = this.checked; });
+  document.getElementById('sel-format').addEventListener('change', function() { canvasFormat = this.value; applyCanvasFormat(this.value); updateRecordButtonLabel(); });
+
+  // === TIMECODE ===
+  document.getElementById('toggle-timecode').addEventListener('change', function() {
+    showTimecode = this.checked;
+    document.getElementById('timecode-overlay').style.display = this.checked ? 'block' : 'none';
+  });
+  document.getElementById('toggle-realtime').addEventListener('change', function() { useRealTime = this.checked; });
+  document.getElementById('r-tc-y').addEventListener('input', function() { tcPosY = parseInt(this.value); document.getElementById('v-tc-y').textContent = this.value; });
+  document.getElementById('r-tc-size').addEventListener('input', function() { tcSize = parseInt(this.value); document.getElementById('v-tc-size').textContent = this.value; });
+
+  // === COUNTDOWN ===
+  document.getElementById('toggle-countdown').addEventListener('change', function() {
+    countdownEnabled = this.checked;
+    document.getElementById('countdown-overlay').style.display = this.checked ? 'block' : 'none';
+  });
+  document.getElementById('input-cd-title').addEventListener('input', function() {
+    document.getElementById('cd-title').textContent = this.value;
+  });
+  document.getElementById('input-cd-date').addEventListener('change', function() {
+    const parts = this.value.split('-');
+    if (parts.length === 3) countdownTarget = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]), 9, 0, 0);
+  });
+  document.getElementById('r-cd-y').addEventListener('input', function() { cdPosY = parseInt(this.value); document.getElementById('v-cd-y').textContent = this.value; });
+  document.getElementById('r-cd-size').addEventListener('input', function() { cdSize = parseInt(this.value); document.getElementById('v-cd-size').textContent = this.value; });
+
+  // === QR CODE ===
+  document.getElementById('toggle-qr').addEventListener('change', function() {
+    qrEnabled = this.checked;
+    if (this.checked && !qrUrl) { qrUrl = window.location.href; document.getElementById('input-qr-url').value = qrUrl; }
+    updateQRCode();
+  });
+  document.getElementById('input-qr-url').addEventListener('input', function() { qrUrl = this.value; updateQRCode(); });
+  document.getElementById('r-qr-size').addEventListener('input', function() { qrSize = parseInt(this.value); document.getElementById('v-qr-size').textContent = this.value; updateQRCode(); });
+  document.getElementById('r-qr-x').addEventListener('input', function() { qrX = parseInt(this.value); document.getElementById('v-qr-x').textContent = this.value; updateQRCode(); });
+  document.getElementById('r-qr-y').addEventListener('input', function() { qrY = parseInt(this.value); document.getElementById('v-qr-y').textContent = this.value; updateQRCode(); });
+
+  // === EXPORTAR ===
+  document.getElementById('btn-export-png').addEventListener('click', exportPNG);
+  document.getElementById('btn-save-settings').addEventListener('click', () => {
+    const json = JSON.stringify(collectSettings(), null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'trama-v08-settings.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  document.getElementById('btn-load-settings').addEventListener('click', () => {
+    document.getElementById('file-load-settings').click();
+  });
+  document.getElementById('file-load-settings').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try { applySettings(JSON.parse(e.target.result)); }
+      catch (err) { console.error('Invalid settings file:', err); }
+    };
+    reader.readAsText(file);
+    this.value = '';
+  });
+
+  // === GRAVAR ===
+  document.getElementById('r-rec-dur').addEventListener('input', function() {
+    recDuration = parseInt(this.value);
+    document.getElementById('v-rec-dur').textContent = this.value;
+  });
+  document.getElementById('btn-record').addEventListener('click', function() {
+    if (isRecording) stopRecording();
+    else startRecording();
+  });
+  updateRecordButtonLabel();
+
+  // Start animation loop (runs always, not just with camera)
+  requestAnimationFrame(animate);
+}
+
+init();
+</script>
+</body>
+</html>
