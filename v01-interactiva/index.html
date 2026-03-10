@@ -6,7 +6,8 @@
 <title>TRAMA - Jornadas do Design V08</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <style>
-body{margin:0;padding:0;overflow:hidden;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+body{margin:0;padding:0;overflow:hidden;background:#000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:none}
+body.show-cursor{cursor:default}
 .canvas-container{position:fixed;top:0;left:0;width:100%;height:100%}
 #webcam{position:absolute;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none}
 #effectCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:none}
@@ -1748,6 +1749,36 @@ function init() {
 
   // Start animation loop (runs always, not just with camera)
   requestAnimationFrame(animate);
+
+  // === KIOSK MODE ===
+  // Auto-fullscreen on first click anywhere (browser requires user gesture)
+  let kioskActivated = false;
+  document.addEventListener('click', function kioskEnter() {
+    if (kioskActivated) return;
+    const el = document.documentElement;
+    const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (rfs) {
+      rfs.call(el).catch(() => {});
+      kioskActivated = true;
+    }
+  });
+  // Re-enter fullscreen on Escape (user pressed Esc, next click goes back)
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) kioskActivated = false;
+  });
+  document.addEventListener('webkitfullscreenchange', () => {
+    if (!document.webkitFullscreenElement) kioskActivated = false;
+  });
+
+  // Auto-hide cursor after 3s of inactivity
+  let cursorTimer;
+  function showCursor() {
+    document.body.classList.add('show-cursor');
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(() => document.body.classList.remove('show-cursor'), 3000);
+  }
+  document.addEventListener('mousemove', showCursor);
+  document.addEventListener('mousedown', showCursor);
 }
 
 init();
