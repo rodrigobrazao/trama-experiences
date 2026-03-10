@@ -138,6 +138,8 @@ button.secondary-btn{width:100%;padding:6px;background:rgba(255,255,255,0.1);bor
 <div class="section-header" onclick="toggleSection(this)">VISUAL <span class="arrow">▾</span></div>
 <div class="section-content">
 <div class="cg"><label>Tema</label><select id="sel-theme"><option value="auto">Automatico</option><option value="dark" selected>Escuro</option><option value="light">Claro</option></select></div>
+<div class="toggle-row"><span>Mostrar Letras</span><label class="toggle"><input type="checkbox" id="toggle-letters" checked><div class="slider"></div></label></div>
+<div class="toggle-row"><span>Mostrar Subtitulo</span><label class="toggle"><input type="checkbox" id="toggle-subtitle" checked><div class="slider"></div></label></div>
 <div class="toggle-row"><span>Ciclo Gradiente</span><label class="toggle"><input type="checkbox" id="toggle-gradient"><div class="slider"></div></label></div>
 <div class="cg"><label>Formato</label><select id="sel-format"><option value="landscape">Paisagem 1920x1080</option><option value="vertical">Vertical 1080x1920</option><option value="square">Quadrado 1080x1080</option></select></div>
 </div>
@@ -269,6 +271,10 @@ let effectFrostedGrain = 40;
 let effectFrostedFog = 0.15;
 let selectedVideoDeviceId = null;
 let selectedVideoDeviceLabel = '';
+
+// Visibility state
+let showLetters = true;
+let showSubtitle = true;
 
 // Theme state
 let themeMode = 'dark';
@@ -551,15 +557,7 @@ function drawEffectWireframe(landmarks) {
     ctx.lineTo(landmarks[b].x, landmarks[b].y);
   }
   ctx.stroke();
-  for (let idx of [4, 8, 12, 16, 20]) {
-    let z = landmarks[idx].z, size = 12 + z * 40;
-    let alpha = (0.7 + z * 0.3) * opacity;
-    ctx.fillStyle = `rgba(255, 68, 68, ${Math.max(0.3, Math.min(1, alpha))})`;
-    ctx.beginPath(); ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(6, size), 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = `rgba(255, 200, 50, ${Math.max(0.2, Math.min(0.8, alpha * 0.5))})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(landmarks[idx].x, landmarks[idx].y, Math.max(10, size + 5), 0, Math.PI * 2); ctx.stroke();
-  }
+  // Wrist dot
   ctx.fillStyle = `rgba(68, 136, 255, ${opacity})`;
   ctx.beginPath(); ctx.arc(landmarks[0].x, landmarks[0].y, 10, 0, Math.PI * 2); ctx.fill();
 }
@@ -586,17 +584,44 @@ function drawEffectSkeleton(landmarks) {
 }
 
 function drawHands() {
-  for (let lm of allHandLandmarks) {
-    if (currentEffect === 'skeleton') drawEffectSkeleton(lm);
-    else drawEffectWireframe(lm);
+  const opacity = CONFIG.trackingOpacity;
+  // Draw selected effect (wireframe/skeleton) — respects opacity
+  if (opacity > 0) {
+    for (let lm of allHandLandmarks) {
+      if (currentEffect === 'skeleton') drawEffectSkeleton(lm);
+      else drawEffectWireframe(lm);
+    }
   }
+  // Capture radius circles — visible with minimum alpha
   if (currentEffect === 'wireframe') {
-    ctx.strokeStyle = `rgba(255, 200, 50, ${CONFIG.trackingOpacity * 0.5})`;
+    ctx.strokeStyle = `rgba(255, 200, 50, ${Math.max(0.15, opacity * 0.5)})`;
     ctx.lineWidth = 2;
     for (let f of allFingers) {
       ctx.beginPath(); ctx.arc(f.x, f.y, CONFIG.captureRadius, 0, Math.PI*2); ctx.stroke();
     }
   }
+}
+
+// Fingertip dots — completely independent, ALWAYS visible regardless of tracking opacity
+function drawFingertipDots() {
+  if (allHandLandmarks.length === 0) return;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  for (let lm of allHandLandmarks) {
+    for (let idx of [4, 8, 12, 16, 20]) {
+      const p = lm[idx];
+      const z = p.z, size = 12 + z * 40;
+      const zAlpha = 0.7 + z * 0.3;
+      // Red filled dot
+      ctx.fillStyle = `rgba(255, 68, 68, ${Math.max(0.5, Math.min(1, zAlpha))})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(8, size), 0, Math.PI * 2); ctx.fill();
+      // Yellow ring
+      ctx.strokeStyle = `rgba(255, 200, 50, ${Math.max(0.3, Math.min(0.8, zAlpha * 0.5))})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(12, size + 5), 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 // ============================================
@@ -855,13 +880,16 @@ function updateQRCode() {
   htmlEl.src = dataUrl;
   htmlEl.style.display = 'block';
   // Position relative to canvas scaling (with padding)
+  // QR coords (qrX, qrY) are in DESIGN_W×DESIGN_H (1920×1080) space — map proportionally
   const us = Math.min((canvas.width - 2*CANVAS_PADDING) / logicalW, (canvas.height - 2*CANVAS_PADDING) / logicalH);
-  const offsetX = (canvas.width - logicalW * us) / 2;
-  const offsetY = (canvas.height - logicalH * us) / 2;
-  htmlEl.style.left = (offsetX + qrX * us) + 'px';
-  htmlEl.style.top = (offsetY + qrY * us) + 'px';
-  htmlEl.style.width = (qrSize * us) + 'px';
-  htmlEl.style.height = (qrSize * us) + 'px';
+  const svgW = logicalW * us, svgH = logicalH * us;
+  const offsetX = (canvas.width - svgW) / 2;
+  const offsetY = (canvas.height - svgH) / 2;
+  const qrScale = svgW / DESIGN_W;
+  htmlEl.style.left = (offsetX + (qrX / DESIGN_W) * svgW) + 'px';
+  htmlEl.style.top = (offsetY + (qrY / DESIGN_H) * svgH) + 'px';
+  htmlEl.style.width = (qrSize * qrScale) + 'px';
+  htmlEl.style.height = (qrSize * qrScale) + 'px';
 }
 
 // ============================================
@@ -979,12 +1007,25 @@ function onHandResults(results) {
   allFingers = [];
   allHandLandmarks = [];
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+    // Map landmarks to design area (where the video is actually drawn), not full canvas
+    const da = getDesignArea();
+    // For non-landscape cover mode, compute crop offset so landmarks match the visible webcam area
+    let cropX0 = 0, cropY0 = 0, cropW = 1, cropH = 1;
+    if (canvasFormat !== 'landscape' && cameraEnabled && webcam.videoWidth > 0) {
+      const srcAR = webcam.videoWidth / webcam.videoHeight;
+      const dstAR = da.width / da.height;
+      if (srcAR > dstAR) {
+        cropH = 1; cropW = dstAR / srcAR; cropX0 = (1 - cropW) / 2; cropY0 = 0;
+      } else {
+        cropW = 1; cropH = srcAR / dstAR; cropX0 = 0; cropY0 = (1 - cropH) / 2;
+      }
+    }
     for (let handIdx = 0; handIdx < results.multiHandLandmarks.length; handIdx++) {
       const lm = results.multiHandLandmarks[handIdx];
-      // Mirror: camera feed is drawn flipped horizontally (selfie), so landmarks must also flip X
+      // Mirror X + map to visible crop area + design area so landmarks align with video feed
       const landmarks = lm.map(p => ({
-        x: (1 - p.x) * canvas.width,
-        y: p.y * canvas.height,
+        x: da.left + ((1 - p.x) - cropX0) / cropW * da.width,
+        y: da.top + (p.y - cropY0) / cropH * da.height,
         z: (p.z || 0) * -1
       }));
       allHandLandmarks.push(landmarks);
@@ -1049,7 +1090,20 @@ function render() {
     ctx.save();
     ctx.translate(offsetX + svgW, offsetY);
     ctx.scale(-1, 1);
-    ctx.drawImage(effectCanvas, 0, 0, svgW, svgH);
+    if (canvasFormat !== 'landscape') {
+      // Cover mode: crop center of webcam to match design area aspect ratio (no distortion)
+      const srcAspect = ew / eh;
+      const dstAspect = svgW / svgH;
+      let sx, sy, sw, sh;
+      if (srcAspect > dstAspect) {
+        sh = eh; sw = eh * dstAspect; sx = (ew - sw) / 2; sy = 0;
+      } else {
+        sw = ew; sh = ew / dstAspect; sx = 0; sy = (eh - sh) / 2;
+      }
+      ctx.drawImage(effectCanvas, sx, sy, sw, sh, 0, 0, svgW, svgH);
+    } else {
+      ctx.drawImage(effectCanvas, 0, 0, svgW, svgH);
+    }
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -1093,15 +1147,18 @@ function render() {
   ctx.rect(offsetX, offsetY, svgW, svgH);
   ctx.clip();
   drawDistortedPolylines(offsetX, offsetY, svgW, svgH, us);
-  drawDistortedSubtitle(offsetX, offsetY, us);
-  drawDistortedLetters(offsetX, offsetY, svgW, svgH);
+  if (showSubtitle) drawDistortedSubtitle(offsetX, offsetY, svgW, svgH);
+  if (showLetters) drawDistortedLetters(offsetX, offsetY, svgW, svgH);
   ctx.restore();
 
   // 7. Border on top (not clipped, so it's crisp)
   drawStaticBorder(offsetX, offsetY, svgW, svgH);
 
-  // 8. Hand overlay
+  // 8. Hand effects overlay (wireframe/skeleton — respects tracking opacity)
   drawHands();
+
+  // 9. Fingertip dots — ALWAYS visible, independent of all opacity settings
+  drawFingertipDots();
 }
 
 function drawDistortedPolylines(offsetX, offsetY, svgW, svgH, scale) {
@@ -1157,25 +1214,27 @@ function drawStaticBorder(offsetX, offsetY, svgW, svgH) {
   ctx.strokeRect(offsetX, offsetY, svgW, svgH);
 }
 
-function drawDistortedSubtitle(offsetX, offsetY, scale) {
-  drawPath2DDistorted(jornadasPath, JORNADAS_CENTER.x, JORNADAS_CENTER.y, offsetX, offsetY, scale, false);
-  drawPath2DDistorted(doDesignPath, DODESIGN_CENTER.x, DODESIGN_CENTER.y, offsetX, offsetY, scale, false);
+function drawDistortedSubtitle(offsetX, offsetY, svgW, svgH) {
+  drawPath2DDistorted(jornadasPath, JORNADAS_CENTER.x, JORNADAS_CENTER.y, offsetX, offsetY, svgW, svgH, false);
+  drawPath2DDistorted(doDesignPath, DODESIGN_CENTER.x, DODESIGN_CENTER.y, offsetX, offsetY, svgW, svgH, false);
 }
 
 function drawDistortedLetters(offsetX, offsetY, svgW, svgH) {
-  // Per-vertex grid distortion: each vertex of each letter is independently distorted
-  // through the elastic grid, exactly like polylines. This keeps letters locked to the lines.
+  // Per-vertex grid distortion using the SAME coordinate mapping as polylines
+  // so letters stay perfectly locked to the grid lines in all formats.
   const {r, g, b} = themeTextRgb;
   ctx.fillStyle = `rgba(${r},${g},${b},1)`;
   ctx.strokeStyle = `rgba(${r},${g},${b},1)`;
-  ctx.lineWidth = 0.68 * (svgW / DESIGN_W);
+  const scaleX = svgW / DESIGN_W;
+  const scaleY = svgH / DESIGN_H;
+  ctx.lineWidth = 0.68 * Math.min(scaleX, scaleY);
   ctx.lineJoin = 'round';
   for (let letterSubPaths of tramaParsed) {
     ctx.beginPath();
     for (let subPath of letterSubPaths) {
       for (let pi = 0; pi < subPath.length; pi++) {
         const pt = subPath[pi];
-        // Map from SVG design coords (1920×1080) to canvas coords — same mapping as polylines
+        // Same mapping as polylines: (designCoord / DESIGN_DIM) * svgDim + offset
         const canvasX = (pt.x / DESIGN_W) * svgW + offsetX;
         const canvasY = (pt.y / DESIGN_H) * svgH + offsetY;
         const dp = getDistortedPoint(canvasX, canvasY);
@@ -1189,16 +1248,18 @@ function drawDistortedLetters(offsetX, offsetY, svgW, svgH) {
   }
 }
 
-function drawPath2DDistorted(path, svgCX, svgCY, offsetX, offsetY, scale, hasStroke) {
-  // Simple grid-following: look up where the letter center is deformed to,
-  // then translate + uniform scale. No Jacobian/rotation/shear — keeps letters flat.
-  const cX = offsetX + svgCX * scale;
-  const cY = offsetY + svgCY * scale;
+function drawPath2DDistorted(path, svgCX, svgCY, offsetX, offsetY, svgW, svgH, hasStroke) {
+  // Grid-following: look up where the subtitle center is deformed to,
+  // then translate + scale. Uses same mapping as polylines for alignment.
+  const scaleX = svgW / DESIGN_W;
+  const scaleY = svgH / DESIGN_H;
+  const cX = (svgCX / DESIGN_W) * svgW + offsetX;
+  const cY = (svgCY / DESIGN_H) * svgH + offsetY;
   const pc = getDistortedPoint(cX, cY);
   const {r, g, b} = themeTextRgb;
   ctx.save();
   ctx.translate(pc.x, pc.y);
-  ctx.scale(scale, scale);
+  ctx.scale(scaleX, scaleY);
   ctx.translate(-svgCX, -svgCY);
   ctx.fillStyle = `rgba(${r},${g},${b},1)`;
   ctx.fill(path);
@@ -1285,24 +1346,34 @@ function drawRecFrame() {
     const htmlEl = document.getElementById('qr-overlay-html');
     if (htmlEl.naturalWidth > 0) {
       const us = Math.min(rw / logicalW, rh / logicalH);
-      const ox = (rw - logicalW * us) / 2;
-      const oy = (rh - logicalH * us) / 2;
-      recCtx.drawImage(htmlEl, ox + qrX * us, oy + qrY * us, qrSize * us, qrSize * us);
+      const recSvgW = logicalW * us, recSvgH = logicalH * us;
+      const ox = (rw - recSvgW) / 2;
+      const oy = (rh - recSvgH) / 2;
+      const qrScale = recSvgW / DESIGN_W;
+      recCtx.drawImage(htmlEl, ox + (qrX / DESIGN_W) * recSvgW, oy + (qrY / DESIGN_H) * recSvgH, qrSize * qrScale, qrSize * qrScale);
     }
   }
+}
+
+function getRecDims() {
+  // Match recording resolution to current canvas format
+  if (canvasFormat === 'vertical') return { w: 1080, h: 1920 };
+  if (canvasFormat === 'square') return { w: 1080, h: 1080 };
+  return { w: 1920, h: 1080 };
 }
 
 function startRecording() {
   const btn = document.getElementById('btn-record');
   const status = document.getElementById('rec-status');
-  // Always record at HD 1920×1080 (YouTube standard), regardless of current canvas format
-  const REC_W = 1920, REC_H = 1080;
+  // Record at format-matched resolution
+  const dims = getRecDims();
+  const REC_W = dims.w, REC_H = dims.h;
   recCanvas = document.createElement('canvas');
   recCanvas.width = REC_W;
   recCanvas.height = REC_H;
   recCtx = recCanvas.getContext('2d');
   const stream = recCanvas.captureStream(25);
-  // Try codecs: H.264 preferred for YouTube compatibility, then VP9 (also YouTube-friendly)
+  // Try codecs: H.264 preferred for YouTube/Instagram compatibility, then VP9
   const codecs = ['video/webm;codecs=h264', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   let mimeType = codecs.find(c => MediaRecorder.isTypeSupported(c)) || 'video/webm';
   const usedCodec = mimeType.includes('h264') ? 'H.264' : mimeType.includes('vp9') ? 'VP9' : mimeType.includes('vp8') ? 'VP8' : 'WebM';
@@ -1310,7 +1381,7 @@ function startRecording() {
   try {
     mediaRecorder = new MediaRecorder(stream, {
       mimeType: mimeType,
-      videoBitsPerSecond: 25000000 // 25 Mbps — well above YouTube's 8 Mbps recommendation for 1080p
+      videoBitsPerSecond: 25000000
     });
   } catch (e) {
     mediaRecorder = new MediaRecorder(stream);
@@ -1322,12 +1393,12 @@ function startRecording() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trama-v08-${REC_W}x${REC_H}-${usedCodec}-${Date.now()}.webm`;
+    a.download = `trama-v08-${canvasFormat}-${REC_W}x${REC_H}-${usedCodec}-${Date.now()}.webm`;
     a.click();
     URL.revokeObjectURL(url);
     recCanvas = null; recCtx = null;
     status.textContent = `Exportado ${usedCodec} ${REC_W}×${REC_H} @ 25fps`;
-    btn.textContent = 'Gravar HD 1920×1080';
+    updateRecordButtonLabel();
     btn.classList.remove('active');
     isRecording = false;
   };
@@ -1359,7 +1430,10 @@ function stopRecording() {
 
 function updateRecordButtonLabel() {
   const btn = document.getElementById('btn-record');
-  if (!isRecording) btn.textContent = 'Gravar HD 1920\u00d71080';
+  if (!isRecording) {
+    const dims = getRecDims();
+    btn.textContent = `Gravar HD ${dims.w}\u00d7${dims.h}`;
+  }
 }
 
 // ============================================
@@ -1594,6 +1668,8 @@ function init() {
   document.getElementById('r-frosted-fog').addEventListener('input', function() { effectFrostedFog = parseFloat(this.value); document.getElementById('v-fr-f').textContent = parseFloat(this.value).toFixed(2); });
 
   // === VISUAL ===
+  document.getElementById('toggle-letters').addEventListener('change', function() { showLetters = this.checked; });
+  document.getElementById('toggle-subtitle').addEventListener('change', function() { showSubtitle = this.checked; });
   document.getElementById('sel-theme').addEventListener('change', function() { themeMode = this.value; });
   document.getElementById('toggle-gradient').addEventListener('change', function() { gradientCycleEnabled = this.checked; });
   document.getElementById('sel-format').addEventListener('change', function() { canvasFormat = this.value; applyCanvasFormat(this.value); updateRecordButtonLabel(); });
